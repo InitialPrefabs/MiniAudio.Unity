@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using InitialPrefabs.NimGui.Loop;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -12,11 +10,15 @@ namespace MiniAudio.Entities.Demo {
         public Camera Camera;
 
         void OnEnable() {
+#if !URP_ENABLED
             DefaultImGuiInitialization.SetupCamera(Camera, CameraEvent);
+#endif
         }
 
         void OnDisable() {
+#if !URP_ENABLED
             DefaultImGuiInitialization.TearDownCamera(Camera, CameraEvent);
+#endif
         }
 
         void Update() {
