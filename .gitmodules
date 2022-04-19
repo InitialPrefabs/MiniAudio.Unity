@@ -1,0 +1,3 @@
+[submodule "MiniAudio.Unity.Bindings/miniaudio"]
+	path = MiniAudio.Unity.Bindings/miniaudio
+	url = git@github.com:mackron/miniaudio.git
