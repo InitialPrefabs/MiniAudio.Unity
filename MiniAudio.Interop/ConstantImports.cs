@@ -5,7 +5,7 @@ namespace MiniAudio.Interop {
 
     public static class ConstantImports {
 
-        public const string MiniAudioLibPath = "/MiniAudio/Plugins/MiniAudio_Unity_Bindings.dll";
+        public const string MiniAudioLibPath = "/MiniAudio.Unity/Plugins/MiniAudio_Unity_Bindings.dll";
         public static IntPtr MiniAudioHandle => LibraryHandleInternal;
 
         static IntPtr LibraryHandleInternal;
