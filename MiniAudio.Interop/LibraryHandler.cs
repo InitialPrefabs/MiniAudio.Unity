@@ -19,7 +19,7 @@ namespace MiniAudio.Interop {
             IntPtr handle = LoadLibrary(path);
 
             if (handle == IntPtr.Zero) {
-                throw new Exception("Couldn't open native library: " + path);
+                return IntPtr.Zero;
             }
             return handle;
         }
