@@ -1,0 +1,27 @@
+{
+    "name": "MIniAudio.Entities.Demo",
+    "rootNamespace": "MiniAudio.Entities",
+    "references": [
+        "GUID:2ba081b12aa12e346b7f8636f0e6fe91",
+        "GUID:e664c91b29cf1cf49b1365492ac96f01",
+        "GUID:578eebed78188fa41b67b2cca0f40b9e",
+        "GUID:3abe75d519a389a4287af16cb3bde03d",
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:734d92eba21c94caba915361bd5ac177",
+        "GUID:8a2eafa29b15f444eb6d74f94a930e1d",
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "GUID:d8b63aba1907145bea998dd612889d6b"
+    ],
+    "includePlatforms": [
+        "Editor",
+        "WindowsStandalone64"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
