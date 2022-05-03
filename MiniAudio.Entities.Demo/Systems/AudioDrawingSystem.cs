@@ -1,10 +1,7 @@
 using System.Text;
-using InitialPrefabs.NimGui;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
-using Screen = UnityEngine.Screen;
 
 namespace MiniAudio.Entities {
     
@@ -42,6 +39,7 @@ namespace MiniAudio.Entities {
         }
 
         protected override void OnUpdate() {
+            /*
             if (ImGui.Button("Quit")) {
                 UnityEngine.Application.Quit();
             }
@@ -107,6 +105,7 @@ namespace MiniAudio.Entities {
 
             audioHandles.Dispose();
             entities.Dispose();
+            */
         }
     }
 }
