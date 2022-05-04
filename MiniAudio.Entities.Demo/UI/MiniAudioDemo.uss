@@ -1,0 +1,19 @@
+.title {
+    font-size: 50px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.center {
+    margin: auto;
+    width: 33%;
+    padding: 10px;
+}
+
+Slider {
+    font-size: 20px;
+}
+
+Button {
+    font-size: 20px;
+}

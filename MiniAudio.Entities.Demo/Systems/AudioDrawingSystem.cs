@@ -3,8 +3,8 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace MiniAudio.Entities {
-    
+namespace MiniAudio.Entities.Demo {
+
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial class AudioDrawingSystem : SystemBase {
 
@@ -13,7 +13,7 @@ namespace MiniAudio.Entities {
         [BurstCompile]
         partial struct AudioQueryJob : IJobEntity {
 
-            [WriteOnly] 
+            [WriteOnly]
             public NativeList<MiniAudio.Entities.AudioClip> Clips;
 
             [WriteOnly]
@@ -30,26 +30,21 @@ namespace MiniAudio.Entities {
 
         protected override void OnCreate() {
             audioQuery = GetEntityQuery(new EntityQueryDesc {
-                All = new [] {
-                    ComponentType.ReadOnly<AudioClip>() 
+                All = new[] {
+                    ComponentType.ReadOnly<AudioClip>()
                 }
             });
 
-            commandBufferSystem = World.GetOrCreateSystem<BeginSimulationEntityCommandBufferSystem>();
+            // commandBufferSystem = World.GetOrCreateSystem<BeginSimulationEntityCommandBufferSystem>();
         }
 
         protected override void OnUpdate() {
-            /*
-            if (ImGui.Button("Quit")) {
-                UnityEngine.Application.Quit();
-            }
-
             var audioHandles = new NativeList<AudioClip>(
-                audioQuery.CalculateEntityCount(), 
+                audioQuery.CalculateEntityCount(),
                 Allocator.TempJob);
 
-            var entities=  new NativeList<Entity>(
-                audioQuery.CalculateEntityCount(), 
+            var entities = new NativeList<Entity>(
+                audioQuery.CalculateEntityCount(),
                 Allocator.TempJob);
 
             new AudioQueryJob() {
@@ -57,55 +52,16 @@ namespace MiniAudio.Entities {
                 AssociatedEntities = entities
             }.Run(audioQuery);
 
-            var center = new float2(Screen.width / 2f, Screen.height / 2f);
-            var commandBuffer = commandBufferSystem.CreateCommandBuffer();
-
-            using (var pane = new ImPane("Audio Handles", center, 500, ImPaneFlags.Pinned)) {
-                if (pane.IsVisible) {
-                    for (int i = 0; i < audioHandles.Length; i++) {
-                        var audioHandle = audioHandles[i];
-                        StringBuilder.Clear().Append("Audio Handle: ").Append(audioHandle.Handle);
-                        ImGui.Label(StringBuilder);
-
-                        switch (audioHandle.CurrentState) {
-                            case AudioState.Stopped:
-                                if (ImGui.Button("Play")) {
-                                    audioHandle.CurrentState = AudioState.Playing;
-                                    commandBuffer.SetComponent(entities[i], audioHandle);
-                                }
-                                break;
-                            case AudioState.Playing:
-                                var volume = ImGui.Slider("Volume", 0f, 1f, audioHandle.Parameters.Volume);
-
-                                if (volume != audioHandle.Parameters.Volume) {
-                                    audioHandle.Parameters.Volume = volume;
-                                    commandBuffer.SetComponent(entities[i], audioHandle);
-                                }
-
-                                if (ImGui.Button("Stop")) {
-                                    audioHandle.CurrentState = AudioState.Stopped;
-                                    commandBuffer.SetComponent(entities[i], audioHandle);
-                                } else if (ImGui.Button("Pause")) {
-                                    audioHandle.CurrentState = AudioState.Paused;
-                                    commandBuffer.SetComponent(entities[i], audioHandle);
-                                }
-                                break;
-                            case AudioState.Paused:
-                                if (ImGui.Button("Resume")) {
-                                    audioHandle.CurrentState = AudioState.Playing;
-                                    commandBuffer.SetComponent(entities[i], audioHandle);
-                                }
-                                break;
-                        }
-                    }
-                }
+            for (int i = 0; UIDocumentAuthoring.Instance != null && i < audioHandles.Length; i++) {
+                var audioHandle = audioHandles[i];
+                var entity = entities[i];
+                UIDocumentAuthoring.Instance.LastKnownEntity = entity;
+                UIDocumentAuthoring.Instance.AudioClip = audioHandle;
             }
 
-            commandBufferSystem.AddJobHandleForProducer(Dependency);
-
+            // commandBufferSystem.AddJobHandleForProducer(Dependency);
             audioHandles.Dispose();
             entities.Dispose();
-            */
         }
     }
 }

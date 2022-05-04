@@ -204,12 +204,11 @@ namespace MiniAudio.Entities.Systems {
             });
 
             var streamingPath = Application.streamingAssetsPath;
-            var fixedStreamingPath = new NativeList<char>(streamingPath.Length, Allocator.Persistent);
+            fixedStreamingPath = new NativeArray<char>(streamingPath.Length, Allocator.Persistent);
 
             for (int i = 0; i < streamingPath.Length; i++) {
-                fixedStreamingPath.AddNoResize(streamingPath[i]);
+                fixedStreamingPath[i] = streamingPath[i];
             }
-            this.fixedStreamingPath = fixedStreamingPath.AsArray();
             commandBufferSystem = World.GetOrCreateSystem<EndInitializationEntityCommandBufferSystem>();
         }
 
