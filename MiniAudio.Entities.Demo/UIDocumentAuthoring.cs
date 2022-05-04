@@ -4,23 +4,6 @@ using UnityEngine.UIElements;
 
 namespace MiniAudio.Entities.Demo {
 
-    public static class UILinkExtensions {
-        public static void ResolveChange(this ref UILink link) {
-            if (link.DidChange) {
-                link.PreviousVersion = link.Version;
-            }
-        }
-    }
-
-    public struct UILink {
-        public bool DidChange => Version != PreviousVersion;
-
-        public AudioState CurrentState;
-        public float Volume;
-        public uint Version;
-        public uint PreviousVersion;
-    }
-
     [RequireComponent(typeof(UIDocument))]
     public class UIDocumentAuthoring : MonoBehaviour {
 
@@ -32,6 +15,7 @@ namespace MiniAudio.Entities.Demo {
         VisualElement root;
         Button playBtn;
         Button stopBtn;
+        Slider volumeSlider;
 
         EntityCommandBufferSystem cmdBufferSystem;
 
@@ -51,6 +35,9 @@ namespace MiniAudio.Entities.Demo {
             stopBtn = root.Q<Button>("stop");
             stopBtn.clicked += HandleStop;
 
+            volumeSlider = root.Q<Slider>("vol");
+            volumeSlider.RegisterValueChangedCallback(ApplyVolume);
+
             cmdBufferSystem = World.DefaultGameObjectInjectionWorld
                 .GetOrCreateSystem<BeginPresentationEntityCommandBufferSystem>();
         }
@@ -58,6 +45,7 @@ namespace MiniAudio.Entities.Demo {
         void OnDestroy() {
             playBtn.clicked -= HandlePlay;
             stopBtn.clicked -= HandleStop;
+            volumeSlider.UnregisterValueChangedCallback(ApplyVolume);
         }
 
         void HandlePlay() {
@@ -70,12 +58,15 @@ namespace MiniAudio.Entities.Demo {
             switch (AudioClip.CurrentState) {
                 case AudioState.Stopped:
                     AudioClip.CurrentState = AudioState.Playing;
+                    playBtn.text = "Pause Audio";
                     break;
                 case AudioState.Playing:
                     AudioClip.CurrentState = AudioState.Paused;
+                    playBtn.text = "Resume Audio";
                     break;
                 case AudioState.Paused:
                     AudioClip.CurrentState = AudioState.Playing;
+                    playBtn.text = "Pause Audio";
                     break;
                 default:
                     changed = false;
@@ -83,7 +74,6 @@ namespace MiniAudio.Entities.Demo {
             }
 
             if (changed) {
-                Debug.Log(AudioClip.CurrentState);
                 var cmdBuffer = cmdBufferSystem.CreateCommandBuffer();
                 cmdBuffer.SetComponent(LastKnownEntity, AudioClip);
             }
@@ -92,6 +82,27 @@ namespace MiniAudio.Entities.Demo {
         void HandleStop() {
             if (LastKnownEntity == Entity.Null) {
                 return;
+            }
+
+            bool changed = false;
+            if (AudioClip.CurrentState != AudioState.Stopped) {
+                AudioClip.CurrentState = AudioState.Stopped;
+                playBtn.text = "Play Audio";
+                changed = true;
+            }
+
+            if (changed) {
+                var cmdBuffer = cmdBufferSystem.CreateCommandBuffer();
+                cmdBuffer.SetComponent(LastKnownEntity, AudioClip);
+            }
+        }
+
+        void ApplyVolume(ChangeEvent<float> changeEvent) {
+            if (changeEvent.newValue != changeEvent.previousValue) {
+                var ratio = changeEvent.newValue / 100f;
+                AudioClip.Parameters.Volume = Mathf.Pow(ratio, 2);
+                var cmdBuffer = cmdBufferSystem.CreateCommandBuffer();
+                cmdBuffer.SetComponent(LastKnownEntity, AudioClip);
             }
         }
     }
