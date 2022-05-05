@@ -1,2 +1,4 @@
-/[Pp]lugins/
-/[Pp]lugins.meta
+!Plugins/
+Plugins/*
+!Plugins/MiniAudio_Unity_Bindings.dll
+!Plugins/MiniAudio_Unity_Bindings.dll.meta
