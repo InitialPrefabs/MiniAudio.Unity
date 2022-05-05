@@ -34,8 +34,6 @@ namespace MiniAudio.Entities.Demo {
                     ComponentType.ReadOnly<AudioClip>()
                 }
             });
-
-            // commandBufferSystem = World.GetOrCreateSystem<BeginSimulationEntityCommandBufferSystem>();
         }
 
         protected override void OnUpdate() {

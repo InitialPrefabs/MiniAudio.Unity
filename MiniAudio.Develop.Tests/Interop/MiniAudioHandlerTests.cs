@@ -5,7 +5,7 @@ namespace MiniAudio.Interop.Tests {
     public class MiniAudioHandlerTests {
 
         [Test]
-        public void DelegatesInitialized() {
+        public void DelegatesInitializedAndReleased() {
             AreNull();
             DefaultMiniAudioInitializationProxy.Initialize();
             AreNotNull();
@@ -14,19 +14,17 @@ namespace MiniAudio.Interop.Tests {
         }
 
         void AreNull() {
-
-
-            Assert.True(MiniAudioHandler.InitCheckHandler == null);
-            Assert.True(MiniAudioHandler.InitEngineHandler == null);
-            Assert.True(MiniAudioHandler.LoadSoundHandler == null);
-            Assert.True(MiniAudioHandler.UnsafeLoadHandler == null);
-            Assert.True(MiniAudioHandler.PlaySoundHandler == null);
-            Assert.True(MiniAudioHandler.StopSoundHandler == null);
-            Assert.True(MiniAudioHandler.ReleaseEngineHandler == null);
-            Assert.True(MiniAudioHandler.SoundPlayingHandler == null);
-            Assert.True(MiniAudioHandler.SoundFinishedHandler == null);
-            Assert.True(MiniAudioHandler.SoundVolumeHandler == null);
-            Assert.True(MiniAudioHandler.InitLoggerHandler == null);
+            Assert.IsNull(MiniAudioHandler.InitCheckHandler);
+            Assert.IsNull(MiniAudioHandler.InitEngineHandler);
+            Assert.IsNull(MiniAudioHandler.LoadSoundHandler);
+            Assert.IsNull(MiniAudioHandler.UnsafeLoadHandler);
+            Assert.IsNull(MiniAudioHandler.PlaySoundHandler);
+            Assert.IsNull(MiniAudioHandler.StopSoundHandler);
+            Assert.IsNull(MiniAudioHandler.ReleaseEngineHandler);
+            Assert.IsNull(MiniAudioHandler.SoundPlayingHandler);
+            Assert.IsNull(MiniAudioHandler.SoundFinishedHandler);
+            Assert.IsNull(MiniAudioHandler.SoundVolumeHandler);
+            Assert.IsNull(MiniAudioHandler.InitLoggerHandler);
         }
 
         void AreNotNull() {

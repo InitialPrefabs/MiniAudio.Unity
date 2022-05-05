@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MiniAudio.Interop {
 
-#region Delegates
+#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
     public delegate bool InitCheckHandler();
     public delegate void VoidHandler();
     public delegate uint LoadHandler(string path, SoundLoadParameters loadParams);
@@ -13,11 +13,11 @@ namespace MiniAudio.Interop {
     public delegate bool BoolHandler(uint handle);
     public delegate void VolumeHandler(uint handle, float volume);
     public delegate uint UnsafeLoadHandler(IntPtr path, uint sizeInBytes, IntPtr loadParams);
+    public delegate void InitLogHandler(IntPtr log, IntPtr warn, IntPtr error);
+#endif
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void LogHandler(string message);
-    public delegate void InitLogHandler(IntPtr log, IntPtr warn, IntPtr error);
-#endregion
 
     public static unsafe class MiniAudioHandler {
 
@@ -174,6 +174,9 @@ namespace MiniAudio.Interop {
         }
 #else
         [DllImport("MiniAudio_Unity_Bindings.dll")]
+        static extern void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error);
+
+        [DllImport("MiniAudio_Unity_Bindings.dll")]
         public static extern bool IsEngineInitialized();
 
         [DllImport("MiniAudio_Unity_Bindings.dll")]
@@ -202,9 +205,6 @@ namespace MiniAudio.Interop {
 
         [DllImport("MiniAudio_Unity_Bindings.dll")]
         public static extern void ReleaseEngine();
-
-        [DllImport("MiniAudio_Unity_Bindings.dll")]
-        static extern void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error);
 #endif
     }
 }
