@@ -1,57 +1,132 @@
 using System;
 using System.Runtime.InteropServices;
+using UnityEngine;
 
 namespace MiniAudio.Interop {
 
-    public static unsafe class MiniAudioHandler {
-#if UNITY_EDITOR_WIN && MINIAUDIO_DEVELOP
-        #region Delegates
-        public delegate bool MiniEngineInitializationCheckHandler();
-        public delegate void MiniAudioEngineHandler();
-        public delegate uint MiniAudioLoadHandler(string path, SoundLoadParameters loadParams);
-        public delegate void MiniSoundHandler(uint handle);
-        public delegate void MiniStopSoundHandler(uint handle, bool rewind);
-        public delegate bool MiniSoundStateHandler(uint handle);
-        public delegate void MiniSoundVolumeHandler(uint handle, float volume);
-        public delegate uint UnsafeMiniAudioLoadHandler(IntPtr path, uint sizeInBytes, IntPtr loadParams);
-        #endregion
+#region Delegates
+    public delegate bool InitCheckHandler();
+    public delegate void VoidHandler();
+    public delegate uint LoadHandler(string path, SoundLoadParameters loadParams);
+    public delegate void SoundHandler(uint handle);
+    public delegate void StopSoundHandler(uint handle, bool rewind);
+    public delegate bool BoolHandler(uint handle);
+    public delegate void VolumeHandler(uint handle, float volume);
+    public delegate uint UnsafeLoadHandler(IntPtr path, uint sizeInBytes, IntPtr loadParams);
 
-        static MiniEngineInitializationCheckHandler InitializationCheckHandler;
-        static MiniAudioEngineHandler InitializationHandler;
-        static MiniAudioLoadHandler LoadSoundHandler;
-        static UnsafeMiniAudioLoadHandler UnsafeLoadSoundHandler;
-        static MiniSoundHandler PlaySoundHandler;
-        static MiniStopSoundHandler StopSoundHandler;
-        static MiniAudioEngineHandler ReleaseHandler;
-        static MiniSoundStateHandler SoundPlayingHandler;
-        static MiniSoundStateHandler SoundFinishedHandler;
-        static MiniSoundVolumeHandler SoundVolumeHandler;
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void LogHandler(string message);
+    public delegate void InitLogHandler(IntPtr log, IntPtr warn, IntPtr error);
+#endregion
+
+    public static unsafe class MiniAudioHandler {
+
+#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+        internal static InitCheckHandler  InitCheckHandler;
+        internal static VoidHandler       InitEngineHandler;
+        internal static LoadHandler       LoadSoundHandler;
+        internal static UnsafeLoadHandler UnsafeLoadHandler;
+        internal static SoundHandler      PlaySoundHandler;
+        internal static StopSoundHandler  StopSoundHandler;
+        internal static VoidHandler       ReleaseEngineHandler;
+        internal static BoolHandler       SoundPlayingHandler;
+        internal static BoolHandler       SoundFinishedHandler;
+        internal static VolumeHandler     SoundVolumeHandler;
+        internal static InitLogHandler    InitLoggerHandler;
+#endif
+
+        internal static LogHandler DebugLogHandler;
+        internal static LogHandler DebugWarnHandler;
+        internal static LogHandler DebugErrorHandler;
+        internal static IntPtr LogFunctionPtr;
+        internal static IntPtr WarnFunctionPtr;
+        internal static IntPtr ErrorFunctionPtr;
+
+        internal static void Log(string msg) => Debug.Log(msg);
+        internal static void Warn(string warn) => Debug.LogWarning(warn);
+        internal static void Error(string error) => Debug.LogError(error);
 
         public static void InitializeLibrary() {
-            var library = ConstantImports.MiniAudioHandle;
-            InitializationCheckHandler = LibraryHandler
-                .GetDelegate<MiniEngineInitializationCheckHandler>(library, "IsEngineInitialized");
-            InitializationHandler = LibraryHandler
-                .GetDelegate<MiniAudioEngineHandler>(library, "InitializeEngine");
-            LoadSoundHandler = LibraryHandler.GetDelegate<MiniAudioLoadHandler>(library, "LoadSound");
-            UnsafeLoadSoundHandler = LibraryHandler.GetDelegate<UnsafeMiniAudioLoadHandler>(library, "UnsafeLoadSound");
-            PlaySoundHandler = LibraryHandler.GetDelegate<MiniSoundHandler>(library, "PlaySound");
-            StopSoundHandler = LibraryHandler.GetDelegate<MiniStopSoundHandler>(library, "StopSound");
-            ReleaseHandler = LibraryHandler.GetDelegate<MiniAudioEngineHandler>(library, "ReleaseEngine");
-            SoundPlayingHandler = LibraryHandler.GetDelegate<MiniSoundStateHandler>(library, "IsSoundPlaying");
-            SoundFinishedHandler = LibraryHandler.GetDelegate<MiniSoundStateHandler>(library, "IsSoundFinished");
-            SoundVolumeHandler = LibraryHandler.GetDelegate<MiniSoundVolumeHandler>(library, "SetSoundVolume");
+            DebugLogHandler   = Log;
+            DebugWarnHandler  = Warn;
+            DebugErrorHandler = Error;
+
+            LogFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugLogHandler);
+            WarnFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugWarnHandler);
+            ErrorFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugErrorHandler);
+
+#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+            InitCheckHandler     = null;
+            InitEngineHandler    = null;
+            LoadSoundHandler     = null;
+            UnsafeLoadHandler    = null;
+            PlaySoundHandler     = null;
+            StopSoundHandler     = null;
+            ReleaseEngineHandler = null;
+            SoundPlayingHandler  = null;
+            SoundFinishedHandler = null;
+            SoundVolumeHandler   = null;
+            InitLoggerHandler    = null;
+
+            var library          = ConstantImports.MiniAudioHandle;
+            InitCheckHandler     += LibraryHandler.GetDelegate<InitCheckHandler>(library, "IsEngineInitialized");
+            InitEngineHandler    += LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
+            LoadSoundHandler     += LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
+            UnsafeLoadHandler    += LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
+            PlaySoundHandler     += LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
+            StopSoundHandler     += LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
+            ReleaseEngineHandler += LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
+            SoundPlayingHandler  += LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundPlaying");
+            SoundFinishedHandler += LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundFinished");
+            SoundVolumeHandler   += LibraryHandler.GetDelegate<VolumeHandler>(library, "SetSoundVolume");
+            InitLoggerHandler    += LibraryHandler.GetDelegate<InitLogHandler>(library, "InitializeLogger");
+#endif
+            InitializeLogger(LogFunctionPtr, WarnFunctionPtr, ErrorFunctionPtr);
+        }
+
+        public static void ReleaseLibrary() {
+#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+            var library          = ConstantImports.MiniAudioHandle;
+            InitCheckHandler     -= LibraryHandler.GetDelegate<InitCheckHandler>(library, "IsEngineInitialized");
+            InitEngineHandler    -= LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
+            LoadSoundHandler     -= LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
+            UnsafeLoadHandler    -= LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
+            PlaySoundHandler     -= LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
+            StopSoundHandler     -= LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
+            ReleaseEngineHandler -= LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
+            SoundPlayingHandler  -= LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundPlaying");
+            SoundFinishedHandler -= LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundFinished");
+            SoundVolumeHandler   -= LibraryHandler.GetDelegate<VolumeHandler>(library, "SetSoundVolume");
+            InitLoggerHandler    -= LibraryHandler.GetDelegate<InitLogHandler>(library, "InitializeLogger");
+
+            InitCheckHandler     = null;
+            InitEngineHandler    = null;
+            LoadSoundHandler     = null;
+            UnsafeLoadHandler    = null;
+            PlaySoundHandler     = null;
+            StopSoundHandler     = null;
+            ReleaseEngineHandler = null;
+            SoundPlayingHandler  = null;
+            SoundFinishedHandler = null;
+            SoundVolumeHandler   = null;
+            InitLoggerHandler    = null;
+#endif
+        }
+
+#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+        static void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error) {
+            InitLoggerHandler?.Invoke(log, warn, error);
         }
 
         public static bool IsEngineInitialized() {
-            if (InitializationCheckHandler != null) {
-                return InitializationCheckHandler.Invoke();
+            if (InitCheckHandler != null) {
+                return InitCheckHandler.Invoke();
             }
             return false;
         }
 
         public static void InitializeEngine() {
-            InitializationHandler?.Invoke();
+            InitEngineHandler?.Invoke();
         }
 
         public static uint LoadSound(string path, SoundLoadParameters loadParams) {
@@ -62,10 +137,10 @@ namespace MiniAudio.Interop {
         }
 
         public static uint UnsafeLoadSound(IntPtr path, uint sizeInBytes, IntPtr loadParams) {
-            if (UnsafeLoadSoundHandler == null) {
+            if (UnsafeLoadHandler == null) {
                 return uint.MaxValue;
             }
-            return UnsafeLoadSoundHandler.Invoke(path, sizeInBytes, loadParams);
+            return UnsafeLoadHandler.Invoke(path, sizeInBytes, loadParams);
         }
 
         public static void PlaySound(uint handle) {
@@ -95,7 +170,7 @@ namespace MiniAudio.Interop {
         }
 
         public static void ReleaseEngine() {
-            ReleaseHandler?.Invoke();
+            ReleaseEngineHandler?.Invoke();
         }
 #else
         [DllImport("MiniAudio_Unity_Bindings.dll")]
@@ -127,6 +202,9 @@ namespace MiniAudio.Interop {
 
         [DllImport("MiniAudio_Unity_Bindings.dll")]
         public static extern void ReleaseEngine();
+
+        [DllImport("MiniAudio_Unity_Bindings.dll")]
+        static extern void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error);
 #endif
     }
 }

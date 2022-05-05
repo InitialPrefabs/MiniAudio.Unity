@@ -4,6 +4,7 @@ using UnityEngine;
 namespace MiniAudio {
 
     [AddComponentMenu("")]
+    [DisallowMultipleComponent]
     internal class DefaultMiniAudioInitializationProxy : MonoBehaviour {
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -17,19 +18,24 @@ namespace MiniAudio {
             Object.DontDestroyOnLoad(go);
         }
 
-        void Start() {
+        internal static void Initialize() {
             ConstantImports.Initialize();
-            DefaultLogInitialization.InitializeLibrary();
-#if UNITY_EDITOR_WIN && MINIAUDIO_DEVELOP
             MiniAudioHandler.InitializeLibrary();
-#endif
-
             MiniAudioHandler.InitializeEngine();
         }
 
-        void OnDestroy() {
+        internal static void Release() {
             MiniAudioHandler.ReleaseEngine();
+            MiniAudioHandler.ReleaseLibrary();
             ConstantImports.Release();
+        }
+
+        void Start() {
+            Initialize();
+        }
+
+        void OnDestroy() {
+            Release();
         }
     }
 }

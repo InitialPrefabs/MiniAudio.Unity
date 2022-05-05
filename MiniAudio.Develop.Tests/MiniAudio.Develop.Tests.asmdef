@@ -1,6 +1,6 @@
 {
-    "name": "MiniAudio.Tests",
-    "rootNamespace": "",
+    "name": "MiniAudio.Develop.Tests",
+    "rootNamespace": "MiniAudio",
     "references": [
         "GUID:e664c91b29cf1cf49b1365492ac96f01",
         "GUID:578eebed78188fa41b67b2cca0f40b9e",
@@ -19,7 +19,8 @@
     ],
     "autoReferenced": false,
     "defineConstraints": [
-        "UNITY_INCLUDE_TESTS"
+        "UNITY_INCLUDE_TESTS",
+        "MINIAUDIO_DEVELOP"
     ],
     "versionDefines": [],
     "noEngineReferences": false
