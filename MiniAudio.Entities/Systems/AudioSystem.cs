@@ -183,7 +183,6 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-
         EntityQuery initializationQuery;
         EntityQuery soundQuery;
         EntityCommandBufferSystem commandBufferSystem;
