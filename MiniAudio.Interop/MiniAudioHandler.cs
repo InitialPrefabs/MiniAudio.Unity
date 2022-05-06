@@ -1,3 +1,4 @@
+using AOT;
 using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -43,8 +44,13 @@ namespace MiniAudio.Interop {
         internal static IntPtr WarnFunctionPtr;
         internal static IntPtr ErrorFunctionPtr;
 
+        [MonoPInvokeCallback(typeof(LogHandler))]
         static void Log(string msg) => Debug.Log(msg);
+
+        [MonoPInvokeCallback(typeof(LogHandler))]
         static void Warn(string warn) => Debug.LogWarning(warn);
+
+        [MonoPInvokeCallback(typeof(LogHandler))]
         static void Error(string error) => Debug.LogError(error);
 
         public static void InitializeLibrary() {
