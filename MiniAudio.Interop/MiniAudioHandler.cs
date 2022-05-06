@@ -26,6 +26,7 @@ namespace MiniAudio.Interop {
         internal static VoidHandler       InitEngineHandler;
         internal static LoadHandler       LoadSoundHandler;
         internal static UnsafeLoadHandler UnsafeLoadHandler;
+        internal static SoundHandler      UnloadSoundHandler;
         internal static SoundHandler      PlaySoundHandler;
         internal static StopSoundHandler  StopSoundHandler;
         internal static VoidHandler       ReleaseEngineHandler;
@@ -42,9 +43,9 @@ namespace MiniAudio.Interop {
         internal static IntPtr WarnFunctionPtr;
         internal static IntPtr ErrorFunctionPtr;
 
-        internal static void Log(string msg) => Debug.Log(msg);
-        internal static void Warn(string warn) => Debug.LogWarning(warn);
-        internal static void Error(string error) => Debug.LogError(error);
+        static void Log(string msg) => Debug.Log(msg);
+        static void Warn(string warn) => Debug.LogWarning(warn);
+        static void Error(string error) => Debug.LogError(error);
 
         public static void InitializeLibrary() {
             DebugLogHandler   = Log;
@@ -60,6 +61,7 @@ namespace MiniAudio.Interop {
             InitEngineHandler    = null;
             LoadSoundHandler     = null;
             UnsafeLoadHandler    = null;
+            UnloadSoundHandler   = null;
             PlaySoundHandler     = null;
             StopSoundHandler     = null;
             ReleaseEngineHandler = null;
@@ -73,6 +75,7 @@ namespace MiniAudio.Interop {
             InitEngineHandler    += LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
             LoadSoundHandler     += LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
             UnsafeLoadHandler    += LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
+            UnloadSoundHandler   += LibraryHandler.GetDelegate<SoundHandler>(library, "UnloadSound");
             PlaySoundHandler     += LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
             StopSoundHandler     += LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
             ReleaseEngineHandler += LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
@@ -91,6 +94,7 @@ namespace MiniAudio.Interop {
             InitEngineHandler    -= LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
             LoadSoundHandler     -= LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
             UnsafeLoadHandler    -= LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
+            UnloadSoundHandler   -= LibraryHandler.GetDelegate<SoundHandler>(library, "UnloadSound");
             PlaySoundHandler     -= LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
             StopSoundHandler     -= LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
             ReleaseEngineHandler -= LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
@@ -103,6 +107,7 @@ namespace MiniAudio.Interop {
             InitEngineHandler    = null;
             LoadSoundHandler     = null;
             UnsafeLoadHandler    = null;
+            UnloadSoundHandler   = null;
             PlaySoundHandler     = null;
             StopSoundHandler     = null;
             ReleaseEngineHandler = null;
@@ -141,6 +146,10 @@ namespace MiniAudio.Interop {
                 return uint.MaxValue;
             }
             return UnsafeLoadHandler.Invoke(path, sizeInBytes, loadParams);
+        }
+
+        public static void UnloadSound(uint handle) {
+            UnloadSoundHandler?.Invoke(handle);
         }
 
         public static void PlaySound(uint handle) {
@@ -187,6 +196,9 @@ namespace MiniAudio.Interop {
 
         [DllImport("MiniAudio_Unity_Bindings.dll")]
         public static extern uint UnsafeLoadSound(IntPtr path, uint sizeInBytes, IntPtr loadParameters);
+
+        [DllImport("MiniAudio_Unity_Bindings.dll")]
+        public static extern void UnloadSound(uint handle);
 
         [DllImport("MiniAudio_Unity_Bindings.dll")]
         public static extern void PlaySound(uint handle);

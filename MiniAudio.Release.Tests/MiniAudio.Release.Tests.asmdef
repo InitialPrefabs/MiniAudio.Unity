@@ -1,0 +1,26 @@
+{
+    "name": "MiniAudio.Release.Tests",
+    "rootNamespace": "",
+    "references": [
+        "MiniAudio.Common",
+        "MiniAudio.Interop",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "!MINIAUDIO_DEVELOP"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
