@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace MiniAudio.Interop {
 
-#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+#if UNITY_EDITOR_WIN
     public delegate bool InitCheckHandler();
     public delegate void VoidHandler();
     public delegate uint LoadHandler(string path, SoundLoadParameters loadParams);
@@ -22,7 +22,7 @@ namespace MiniAudio.Interop {
 
     public static unsafe class MiniAudioHandler {
 
-#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+#if UNITY_EDITOR_WIN
         internal static InitCheckHandler  InitCheckHandler;
         internal static VoidHandler       InitEngineHandler;
         internal static LoadHandler       LoadSoundHandler;
@@ -62,7 +62,7 @@ namespace MiniAudio.Interop {
             WarnFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugWarnHandler);
             ErrorFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugErrorHandler);
 
-#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+#if UNITY_EDITOR_WIN
             InitCheckHandler     = null;
             InitEngineHandler    = null;
             LoadSoundHandler     = null;
@@ -94,7 +94,7 @@ namespace MiniAudio.Interop {
         }
 
         public static void ReleaseLibrary() {
-#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+#if UNITY_EDITOR_WIN
             var library          = ConstantImports.MiniAudioHandle;
             InitCheckHandler     -= LibraryHandler.GetDelegate<InitCheckHandler>(library, "IsEngineInitialized");
             InitEngineHandler    -= LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
@@ -124,7 +124,7 @@ namespace MiniAudio.Interop {
 #endif
         }
 
-#if MINIAUDIO_DEVELOP && UNITY_EDITOR_WIN
+#if UNITY_EDITOR_WIN
         static void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error) {
             InitLoggerHandler?.Invoke(log, warn, error);
         }

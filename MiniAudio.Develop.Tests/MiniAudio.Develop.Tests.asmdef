@@ -20,7 +20,7 @@
     "autoReferenced": false,
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS",
-        "MINIAUDIO_DEVELOP"
+        "UNITY_EDITOR_WIN"
     ],
     "versionDefines": [],
     "noEngineReferences": false

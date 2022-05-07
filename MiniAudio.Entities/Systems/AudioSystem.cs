@@ -5,7 +5,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using UnityEngine;
 
-#if !MINIAUDIO_DEVELOP
+#if !UNITY_EDITOR_WIN
 using Unity.Burst;
 #endif
 
@@ -14,7 +14,7 @@ namespace MiniAudio.Entities.Systems {
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial class AudioSystem : SystemBase {
 
-#if !MINIAUDIO_DEVELOP
+#if !UNITY_EDITOR_WIN
         [BurstCompile]
 #endif
         unsafe struct LoadSoundJob : IJobEntityBatch {
@@ -90,7 +90,7 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-#if !MINIAUDIO_DEVELOP
+#if !UNITY_EDITOR_WIN
         [BurstCompile]
 #endif
         struct StopSoundJob : IJobEntityBatch {
@@ -129,7 +129,7 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-#if !MINIAUDIO_DEVELOP
+#if !UNITY_EDITOR_WIN
         [BurstCompile]
 #endif
         [WithChangeFilter(typeof(AudioClip))]
