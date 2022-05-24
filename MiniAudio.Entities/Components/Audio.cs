@@ -15,10 +15,9 @@ namespace MiniAudio.Entities {
         public char Value;
     }
 
-    [System.Obsolete]
-    public struct StreamingPathTag : IComponentData { }
-
     /// <summary>
+    /// A stand in to describe the audio clip. When DOTS 1.0 rolls out with 
+    /// Enable/Disable components, this will be moved into the AudioClip.
     /// </summary>
     public struct AudioMetadata : IComponentData {
         public bool IsStreamingAssets;
