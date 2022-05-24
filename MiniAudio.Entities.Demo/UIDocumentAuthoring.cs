@@ -11,11 +11,13 @@ namespace MiniAudio.Entities.Demo {
 
         public Entity LastKnownEntity = Entity.Null;
         public AudioClip AudioClip;
+        public string Name;
 
         VisualElement root;
         Button playBtn;
         Button stopBtn;
         Slider volumeSlider;
+        Label clipName;
 
         EntityCommandBufferSystem cmdBufferSystem;
 
@@ -38,6 +40,8 @@ namespace MiniAudio.Entities.Demo {
             volumeSlider = root.Q<Slider>("vol");
             volumeSlider.RegisterValueChangedCallback(ApplyVolume);
 
+            clipName = root.Q<Label>("clip-name");
+
             cmdBufferSystem = World.DefaultGameObjectInjectionWorld
                 .GetOrCreateSystem<BeginPresentationEntityCommandBufferSystem>();
         }
@@ -46,6 +50,10 @@ namespace MiniAudio.Entities.Demo {
             playBtn.clicked -= HandlePlay;
             stopBtn.clicked -= HandleStop;
             volumeSlider.UnregisterValueChangedCallback(ApplyVolume);
+        }
+
+        void Update() {
+            clipName.text = Name;
         }
 
         void HandlePlay() {

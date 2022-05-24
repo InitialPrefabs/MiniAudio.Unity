@@ -19,9 +19,17 @@ namespace MiniAudio.Entities.Demo {
             [WriteOnly]
             public NativeList<Entity> AssociatedEntities;
 
-            void Execute(Entity entity, in AudioClip audioClip) {
+            [WriteOnly]
+            public NativeList<FixedString512Bytes> Names;
+
+            void Execute(Entity entity, DynamicBuffer<LoadPath> loadPath, in AudioClip audioClip) {
                 Clips.AddNoResize(audioClip);
                 AssociatedEntities.AddNoResize(entity);
+                var fixedString = new FixedString512Bytes();
+                for (int i = 0; i < loadPath.Length; i++) {
+                    fixedString.Append(loadPath[i].Value);
+                }
+                Names.AddNoResize(fixedString);
             }
         }
 
@@ -45,16 +53,24 @@ namespace MiniAudio.Entities.Demo {
                 audioQuery.CalculateEntityCount(),
                 Allocator.TempJob);
 
+            var paths = new NativeList<FixedString512Bytes>(
+                audioQuery.CalculateEntityCount(),
+                Allocator.TempJob
+            );
+
             new AudioQueryJob() {
                 Clips = audioHandles,
-                AssociatedEntities = entities
+                AssociatedEntities = entities,
+                Names = paths
             }.Run(audioQuery);
 
             for (int i = 0; UIDocumentAuthoring.Instance != null && i < audioHandles.Length; i++) {
                 var audioHandle = audioHandles[i];
                 var entity = entities[i];
+                var path = paths[i];
                 UIDocumentAuthoring.Instance.LastKnownEntity = entity;
                 UIDocumentAuthoring.Instance.AudioClip = audioHandle;
+                UIDocumentAuthoring.Instance.Name = path.ToString();
             }
 
             // commandBufferSystem.AddJobHandleForProducer(Dependency);
