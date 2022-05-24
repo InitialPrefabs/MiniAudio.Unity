@@ -2,6 +2,7 @@
 using System.IO;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace MiniAudio.Interop.Tests {
 
@@ -19,6 +20,7 @@ namespace MiniAudio.Interop.Tests {
         public void BindingsDoNotThrowErrors() {
             Assert.DoesNotThrow(() => {
                 DefaultMiniAudioInitializationProxy.Initialize();
+                LogAssert.Expect(LogType.Error, "You are trying to reinitialize the AudioEngine!");
 
                 Assert.True(MiniAudioHandler.IsEngineInitialized());
                 Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));

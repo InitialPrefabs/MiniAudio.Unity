@@ -1,5 +1,6 @@
-using System;
+using MiniAudio.Common;
 using MiniAudio.Interop;
+using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -28,8 +29,7 @@ namespace MiniAudio.Entities.Systems {
             [ReadOnly]
             public ComponentTypeHandle<AudioClip> AudioClipType;
 
-            [ReadOnly]
-            public ComponentTypeHandle<StreamingPathTag> StreamingPathType;
+            public ComponentTypeHandle<AudioMetadata> MetadataType;
 
             public EntityCommandBuffer CommandBuffer;
 
@@ -40,52 +40,39 @@ namespace MiniAudio.Entities.Systems {
                 var loadParams = batchInChunk.GetBufferAccessor(LoadPathType);
                 var audioClips = batchInChunk.GetNativeArray(AudioClipType);
                 var entities = batchInChunk.GetNativeArray(EntityType);
+                var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
 
-                if (batchInChunk.Has(StreamingPathType)) {
-                    var fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
-                    for (int i = 0; i < batchInChunk.Count; i++) {
-                        var entity = entities[i];
-                        var audioClip = audioClips[i];
-                        var pathBuffer = loadParams[i];
+                var fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
+                for (int i = 0; i < batchInChunk.Count; i++) {
+                    ref var metadata = ref audioMetadata.ElementAt(i);
 
-                        fullPath.AddRangeNoResize(StreamingPath.GetUnsafeReadOnlyPtr(), StreamingPath.Length);
-                        char* path = (char*)pathBuffer.GetUnsafeReadOnlyPtr();
-                        fullPath.AddRange(path, pathBuffer.Length);
-
-                        SoundLoadParameters* loadParameters = &audioClip.Parameters;
-
-                        var handle = MiniAudioHandler.UnsafeLoadSound(
-                            new IntPtr(fullPath.GetUnsafeReadOnlyPtr<char>()),
-                            (uint)fullPath.Length,
-                            new IntPtr(loadParameters));
-
-                        if (handle != uint.MaxValue) {
-                            audioClip.Handle = handle;
-                            CommandBuffer.SetComponent(entity, audioClip);
-                            CommandBuffer.RemoveComponent<LoadPath>(entity);
-                        }
-                        fullPath.Clear();
+                    if (metadata.IsLoaded) {
+                        continue;
                     }
-                } else {
-                    for (int i = 0; i < batchInChunk.Count; i++) {
-                        var entity = entities[i];
-                        var audioClip = audioClips[i];
-                        var pathBuffer = loadParams[i];
 
-                        char* path = (char*)pathBuffer.GetUnsafeReadOnlyPtr();
-                        SoundLoadParameters* loadParameters = &audioClip.Parameters;
+                    var entity = entities[i];
+                    var audioClip = audioClips[i];
+                    var pathBuffer = loadParams[i];
 
-                        var handle = MiniAudioHandler.UnsafeLoadSound(
-                            new IntPtr(path),
-                            (uint)pathBuffer.Length,
-                            new IntPtr(loadParameters));
+                    fullPath.AddRangeNoResize(StreamingPath.GetUnsafeReadOnlyPtr(), StreamingPath.Length);
 
-                        if (handle != uint.MaxValue) {
-                            audioClip.Handle = handle;
-                            CommandBuffer.SetComponent(entity, audioClip);
-                            CommandBuffer.RemoveComponent<LoadPath>(entity);
-                        }
+                    if (metadata.IsStreamingAssets) {
+                        fullPath.AddRange(pathBuffer.GetUnsafeReadOnlyPtr(), pathBuffer.Length);
                     }
+
+                    SoundLoadParameters* loadParameters = &audioClip.Parameters;
+
+                    var handle = MiniAudioHandler.UnsafeLoadSound(
+                        new IntPtr(fullPath.GetUnsafeReadOnlyPtr<char>()),
+                        (uint)fullPath.Length,
+                        new IntPtr(loadParameters));
+
+                    if (handle != uint.MaxValue) {
+                        audioClip.Handle = handle;
+                        CommandBuffer.SetComponent(entity, audioClip);
+                        metadata.IsLoaded = true;
+                    }
+                    fullPath.Clear();
                 }
             }
         }
@@ -142,6 +129,9 @@ namespace MiniAudio.Entities.Systems {
             public ComponentTypeHandle<AudioClip> AudioClipType;
 
             [ReadOnly]
+            public ComponentTypeHandle<AudioMetadata> MetadataType;
+
+            [ReadOnly]
             public EntityTypeHandle EntityType;
 
             public uint LastSystemVersion;
@@ -155,15 +145,17 @@ namespace MiniAudio.Entities.Systems {
                 var audioClips = batchInChunk.GetNativeArray(AudioClipType);
                 var stateTypes = batchInChunk.GetNativeArray(AudioStateHistoryType);
                 var entities = batchInChunk.GetNativeArray(EntityType);
+                var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
 
                 for (int i = 0; i < batchInChunk.Count; i++) {
                     var audioClip = audioClips[i];
                     var lastState = stateTypes[i].Value;
+                    var metadata = audioMetadata[i];
                     var entity = entities[i];
 
                     MiniAudioHandler.SetSoundVolume(audioClip.Handle, audioClip.Parameters.Volume);
 
-                    if (lastState != audioClip.CurrentState) {
+                    if (lastState != audioClip.CurrentState && metadata.IsLoaded) {
                         switch (audioClip.CurrentState) {
                             case AudioState.Playing:
                                 MiniAudioHandler.PlaySound(audioClip.Handle);
@@ -183,23 +175,17 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-        EntityQuery initializationQuery;
         EntityQuery soundQuery;
         EntityCommandBufferSystem commandBufferSystem;
         NativeArray<char> fixedStreamingPath;
 
         protected override void OnCreate() {
-            initializationQuery = GetEntityQuery(new EntityQueryDesc {
-                All = new[] { ComponentType.ReadOnly<LoadPath>(), ComponentType.ReadWrite<AudioClip>() }
-            });
-
             soundQuery = GetEntityQuery(new EntityQueryDesc() {
                 All = new[] {
                     ComponentType.ReadOnly<AudioClip>(),
-                    ComponentType.ReadOnly<AudioStateHistory>()
+                    ComponentType.ReadOnly<AudioStateHistory>(),
+                    ComponentType.ReadOnly<AudioMetadata>()
                 },
-                Any = new[] { ComponentType.ReadOnly<StreamingPathTag>() },
-                None = new[] { ComponentType.ReadOnly<LoadPath>(), }
             });
 
             var streamingPath = Application.streamingAssetsPath;
@@ -215,7 +201,7 @@ namespace MiniAudio.Entities.Systems {
             if (fixedStreamingPath.IsCreated) {
                 fixedStreamingPath.Dispose();
             }
-        } 
+        }
 
         protected override void OnUpdate() {
             if (!MiniAudioHandler.IsEngineInitialized()) {
@@ -227,10 +213,10 @@ namespace MiniAudio.Entities.Systems {
                 LoadPathType = GetBufferTypeHandle<LoadPath>(true),
                 AudioClipType = GetComponentTypeHandle<AudioClip>(true),
                 EntityType = GetEntityTypeHandle(),
+                MetadataType = GetComponentTypeHandle<AudioMetadata>(false),
                 CommandBuffer = commandBuffer,
-                StreamingPathType = GetComponentTypeHandle<StreamingPathTag>(true),
                 StreamingPath = fixedStreamingPath
-            }.Run(initializationQuery);
+            }.Run(soundQuery);
 
             new StopSoundJob {
                 AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
@@ -242,6 +228,7 @@ namespace MiniAudio.Entities.Systems {
             new ManageAudioStateJob() {
                 AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
                 AudioClipType = GetComponentTypeHandle<AudioClip>(true),
+                MetadataType = GetComponentTypeHandle<AudioMetadata>(true),
                 CommandBuffer = commandBuffer,
                 LastSystemVersion = LastSystemVersion,
                 EntityType = GetEntityTypeHandle()

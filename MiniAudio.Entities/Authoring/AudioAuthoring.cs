@@ -32,9 +32,10 @@ namespace MiniAudio.Entities.Authoring {
                 Value = AudioState.Stopped
             });
 
-            if (IsPathStreamingAssets) {
-                dstManager.AddComponentData(entity, new StreamingPathTag { });
-            }
+            dstManager.AddComponentData(entity, new AudioMetadata {
+                IsLoaded = false,
+                IsStreamingAssets = IsPathStreamingAssets
+            });
         }
     }
 }
