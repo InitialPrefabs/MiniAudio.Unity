@@ -8,8 +8,11 @@
 <Style src="MiniAudioDemo.uss"/>
 <engine:VisualElement class="center">
     <engine:Label text="MiniAudio Unity Demo" class="title"/>
-    <engine:Button text="Play Audio" name="play"/>
-    <engine:Button text="Stop Audio" name="stop"/>
-    <engine:Slider label="Volume" low-value="0" high-value="100" value="50" name="vol"/>
+    <engine:VisualElement>
+        <engine:Label text="Clip Name" class="subtitle" name="clip-name"/>
+        <engine:Button text="Play Audio" name="play"/>
+        <engine:Button text="Stop Audio" name="stop"/>
+        <engine:Slider label="Volume" low-value="0" high-value="100" value="50" name="vol"/>
+    </engine:VisualElement>
 </engine:VisualElement>
 </engine:UXML>

@@ -4,6 +4,11 @@
     -unity-text-align: middle-center;
 }
 
+.subtitle {
+    font-size: 25px;
+    -unity-font-style: bold;
+}
+
 .center {
     margin: auto;
     width: 33%;
