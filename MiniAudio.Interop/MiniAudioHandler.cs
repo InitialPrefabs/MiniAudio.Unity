@@ -109,6 +109,10 @@ namespace MiniAudio.Interop {
             SoundVolumeHandler   -= LibraryHandler.GetDelegate<VolumeHandler>(library, "SetSoundVolume");
             InitLoggerHandler    -= LibraryHandler.GetDelegate<InitLogHandler>(library, "InitializeLogger");
 
+            unsafe {
+                delegate* unmanaged[Cdecl] <bool> a = (delegate* unmanaged[Cdecl] <bool>)LibraryHandler.GetFunctionPointer(library, "IsEngineInitialized");
+            }
+
             InitCheckHandler     = null;
             InitEngineHandler    = null;
             LoadSoundHandler     = null;
