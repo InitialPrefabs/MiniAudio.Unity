@@ -146,7 +146,7 @@ namespace MiniAudio.Entities.Systems {
                 var stateTypes = batchInChunk.GetNativeArray(AudioStateHistoryType);
                 var entities = batchInChunk.GetNativeArray(EntityType);
                 var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
-
+                
                 for (int i = 0; i < batchInChunk.Count; i++) {
                     var audioClip = audioClips[i];
                     var lastState = stateTypes[i].Value;

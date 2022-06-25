@@ -6,14 +6,6 @@ using UnityEngine;
 namespace MiniAudio.Interop {
 
 #if UNITY_EDITOR_WIN
-    public delegate bool InitCheckHandler();
-    public delegate void VoidHandler();
-    public delegate uint LoadHandler(string path, SoundLoadParameters loadParams);
-    public delegate void SoundHandler(uint handle);
-    public delegate void StopSoundHandler(uint handle, bool rewind);
-    public delegate bool BoolHandler(uint handle);
-    public delegate void VolumeHandler(uint handle, float volume);
-    public delegate uint UnsafeLoadHandler(IntPtr path, uint sizeInBytes, IntPtr loadParams);
     public delegate void InitLogHandler(IntPtr log, IntPtr warn, IntPtr error);
 #endif
 
@@ -23,18 +15,18 @@ namespace MiniAudio.Interop {
     public static unsafe class MiniAudioHandler {
 
 #if UNITY_EDITOR_WIN
-        internal static InitCheckHandler  InitCheckHandler;
-        internal static VoidHandler       InitEngineHandler;
-        internal static LoadHandler       LoadSoundHandler;
-        internal static UnsafeLoadHandler UnsafeLoadHandler;
-        internal static SoundHandler      UnloadSoundHandler;
-        internal static SoundHandler      PlaySoundHandler;
-        internal static StopSoundHandler  StopSoundHandler;
-        internal static VoidHandler       ReleaseEngineHandler;
-        internal static BoolHandler       SoundPlayingHandler;
-        internal static BoolHandler       SoundFinishedHandler;
-        internal static VolumeHandler     SoundVolumeHandler;
-        internal static InitLogHandler    InitLoggerHandler;
+        internal static delegate* unmanaged[Cdecl]<bool> IsEngineInitializedHandler;
+        internal static delegate* unmanaged[Cdecl]<void> InitializeEngineHandler;
+        internal static delegate* unmanaged[Cdecl]<string, SoundLoadParameters, uint> LoadSoundHandler;
+        internal static delegate* unmanaged[Cdecl]<IntPtr, uint, IntPtr, uint> UnsafeLoadSoundHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, void> UnloadSoundHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, void> PlaySoundHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, bool, void> StopSoundHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, float, void> SetSoundVolumeHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, bool> IsSoundPlayingHandler;
+        internal static delegate* unmanaged[Cdecl]<uint, bool> IsSoundFinishedHandler;
+        internal static delegate* unmanaged[Cdecl]<void> ReleaseEngineHandler;
+        internal static delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void> InitializeLoggerHandler;
 #endif
 
         internal static LogHandler DebugLogHandler;
@@ -54,8 +46,8 @@ namespace MiniAudio.Interop {
         static void Error(string error) => Debug.LogError(error);
 
         public static void InitializeLibrary() {
-            DebugLogHandler   = Log;
-            DebugWarnHandler  = Warn;
+            DebugLogHandler = Log;
+            DebugWarnHandler = Warn;
             DebugErrorHandler = Error;
 
             LogFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugLogHandler);
@@ -63,133 +55,105 @@ namespace MiniAudio.Interop {
             ErrorFunctionPtr = Marshal.GetFunctionPointerForDelegate(DebugErrorHandler);
 
 #if UNITY_EDITOR_WIN
-            InitCheckHandler     = null;
-            InitEngineHandler    = null;
-            LoadSoundHandler     = null;
-            UnsafeLoadHandler    = null;
-            UnloadSoundHandler   = null;
-            PlaySoundHandler     = null;
-            StopSoundHandler     = null;
-            ReleaseEngineHandler = null;
-            SoundPlayingHandler  = null;
-            SoundFinishedHandler = null;
-            SoundVolumeHandler   = null;
-            InitLoggerHandler    = null;
+            var library = ConstantImports.MiniAudioHandle;
 
-            var library          = ConstantImports.MiniAudioHandle;
-            InitCheckHandler     += LibraryHandler.GetDelegate<InitCheckHandler>(library, "IsEngineInitialized");
-            InitEngineHandler    += LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
-            LoadSoundHandler     += LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
-            UnsafeLoadHandler    += LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
-            UnloadSoundHandler   += LibraryHandler.GetDelegate<SoundHandler>(library, "UnloadSound");
-            PlaySoundHandler     += LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
-            StopSoundHandler     += LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
-            ReleaseEngineHandler += LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
-            SoundPlayingHandler  += LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundPlaying");
-            SoundFinishedHandler += LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundFinished");
-            SoundVolumeHandler   += LibraryHandler.GetDelegate<VolumeHandler>(library, "SetSoundVolume");
-            InitLoggerHandler    += LibraryHandler.GetDelegate<InitLogHandler>(library, "InitializeLogger");
+            IsEngineInitializedHandler = (delegate* unmanaged[Cdecl]<bool>)LibraryHandler.GetFunctionPointer(library, "IsEngineInitialized");
+            InitializeEngineHandler = (delegate* unmanaged[Cdecl]<void>)LibraryHandler.GetFunctionPointer(library, "InitializeEngine");
+            LoadSoundHandler = (delegate* unmanaged[Cdecl]<string, SoundLoadParameters, uint>)LibraryHandler.GetFunctionPointer(library, "LoadSound");
+            UnsafeLoadSoundHandler = (delegate* unmanaged[Cdecl]<IntPtr, uint, IntPtr, uint>)LibraryHandler.GetFunctionPointer(library, "UnsafeLoadSound");
+            UnloadSoundHandler = (delegate* unmanaged[Cdecl]<uint, void>)LibraryHandler.GetFunctionPointer(library, "UnloadSound");
+            PlaySoundHandler = (delegate* unmanaged[Cdecl]<uint, void>)LibraryHandler.GetFunctionPointer(library, "PlaySound");
+            StopSoundHandler = (delegate* unmanaged[Cdecl]<uint, bool, void>)LibraryHandler.GetFunctionPointer(library, "StopSound");
+            SetSoundVolumeHandler = (delegate* unmanaged[Cdecl]<uint, float, void>)LibraryHandler.GetFunctionPointer(library, "SetSoundVolume");
+            IsSoundPlayingHandler = (delegate* unmanaged[Cdecl]<uint, bool>)LibraryHandler.GetFunctionPointer(library, "IsSoundPlaying");
+            IsSoundFinishedHandler = (delegate* unmanaged[Cdecl]<uint, bool>)LibraryHandler.GetFunctionPointer(library, "IsSoundFinished");
+            ReleaseEngineHandler = (delegate* unmanaged[Cdecl]<void>)LibraryHandler.GetFunctionPointer(library, "ReleaseEngine");
+            InitializeLoggerHandler = (delegate* unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>)LibraryHandler.GetFunctionPointer(library, "InitializeLogger");
 #endif
             InitializeLogger(LogFunctionPtr, WarnFunctionPtr, ErrorFunctionPtr);
         }
 
         public static void ReleaseLibrary() {
 #if UNITY_EDITOR_WIN
-            var library          = ConstantImports.MiniAudioHandle;
-            InitCheckHandler     -= LibraryHandler.GetDelegate<InitCheckHandler>(library, "IsEngineInitialized");
-            InitEngineHandler    -= LibraryHandler.GetDelegate<VoidHandler>(library, "InitializeEngine");
-            LoadSoundHandler     -= LibraryHandler.GetDelegate<LoadHandler>(library, "LoadSound");
-            UnsafeLoadHandler    -= LibraryHandler.GetDelegate<UnsafeLoadHandler>(library, "UnsafeLoadSound");
-            UnloadSoundHandler   -= LibraryHandler.GetDelegate<SoundHandler>(library, "UnloadSound");
-            PlaySoundHandler     -= LibraryHandler.GetDelegate<SoundHandler>(library, "PlaySound");
-            StopSoundHandler     -= LibraryHandler.GetDelegate<StopSoundHandler>(library, "StopSound");
-            ReleaseEngineHandler -= LibraryHandler.GetDelegate<VoidHandler>(library, "ReleaseEngine");
-            SoundPlayingHandler  -= LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundPlaying");
-            SoundFinishedHandler -= LibraryHandler.GetDelegate<BoolHandler>(library, "IsSoundFinished");
-            SoundVolumeHandler   -= LibraryHandler.GetDelegate<VolumeHandler>(library, "SetSoundVolume");
-            InitLoggerHandler    -= LibraryHandler.GetDelegate<InitLogHandler>(library, "InitializeLogger");
-
-            unsafe {
-                delegate* unmanaged[Cdecl] <bool> a = (delegate* unmanaged[Cdecl] <bool>)LibraryHandler.GetFunctionPointer(library, "IsEngineInitialized");
-            }
-
-            InitCheckHandler     = null;
-            InitEngineHandler    = null;
-            LoadSoundHandler     = null;
-            UnsafeLoadHandler    = null;
-            UnloadSoundHandler   = null;
-            PlaySoundHandler     = null;
-            StopSoundHandler     = null;
-            ReleaseEngineHandler = null;
-            SoundPlayingHandler  = null;
-            SoundFinishedHandler = null;
-            SoundVolumeHandler   = null;
-            InitLoggerHandler    = null;
+            IsEngineInitializedHandler = null;
+            InitializeEngineHandler    = null;
+            LoadSoundHandler           = null;
+            UnsafeLoadSoundHandler     = null;
+            UnloadSoundHandler         = null;
+            PlaySoundHandler           = null;
+            StopSoundHandler           = null;
+            SetSoundVolumeHandler      = null;
+            IsSoundPlayingHandler      = null;
+            IsSoundFinishedHandler     = null;
+            ReleaseEngineHandler       = null;
+            InitializeLoggerHandler    = null;
 #endif
         }
 
 #if UNITY_EDITOR_WIN
         static void InitializeLogger(IntPtr log, IntPtr warn, IntPtr error) {
-            InitLoggerHandler?.Invoke(log, warn, error);
+            InitializeLoggerHandler(log, warn, error);
         }
 
         public static bool IsEngineInitialized() {
-            if (InitCheckHandler != null) {
-                return InitCheckHandler.Invoke();
+            if (IsEngineInitializedHandler != null) {
+                return IsEngineInitializedHandler();
             }
             return false;
         }
 
         public static void InitializeEngine() {
-            InitEngineHandler?.Invoke();
+            if (InitializeEngineHandler != null) {
+                InitializeEngineHandler();
+            }
         }
 
         public static uint LoadSound(string path, SoundLoadParameters loadParams) {
             if (LoadSoundHandler == null) {
                 return uint.MaxValue;
             }
-            return LoadSoundHandler.Invoke(path, loadParams);
+            return LoadSoundHandler(path, loadParams);
         }
 
         public static uint UnsafeLoadSound(IntPtr path, uint sizeInBytes, IntPtr loadParams) {
-            if (UnsafeLoadHandler == null) {
+            if (UnsafeLoadSoundHandler == null) {
                 return uint.MaxValue;
             }
-            return UnsafeLoadHandler.Invoke(path, sizeInBytes, loadParams);
+            return UnsafeLoadSoundHandler(path, sizeInBytes, loadParams);
         }
 
         public static void UnloadSound(uint handle) {
-            UnloadSoundHandler?.Invoke(handle);
+            UnloadSoundHandler(handle);
         }
 
         public static void PlaySound(uint handle) {
-            PlaySoundHandler?.Invoke(handle);
+            PlaySoundHandler(handle);
         }
 
         public static void StopSound(uint handle, bool rewind) {
-            StopSoundHandler?.Invoke(handle, rewind);
+            StopSoundHandler(handle, rewind);
         }
 
         public static void SetSoundVolume(uint handle, float volume) {
-            SoundVolumeHandler?.Invoke(handle, volume);
+            SetSoundVolumeHandler(handle, volume);
         }
 
         public static bool IsSoundPlaying(uint handle) {
-            if (SoundPlayingHandler == null) {
+            if (IsSoundPlayingHandler == null) {
                 return false;
             }
-            return SoundPlayingHandler.Invoke(handle);
+            return IsSoundPlayingHandler(handle);
         }
 
         public static bool IsSoundFinished(uint handle) {
-            if (SoundFinishedHandler == null) {
+            if (IsSoundFinishedHandler == null) {
                 return false;
             }
-            return SoundFinishedHandler.Invoke(handle);
+            return IsSoundFinishedHandler(handle);
         }
 
         public static void ReleaseEngine() {
-            ReleaseEngineHandler?.Invoke();
+            ReleaseEngineHandler();
         }
 #else
         [DllImport("MiniAudio_Unity_Bindings.dll")]

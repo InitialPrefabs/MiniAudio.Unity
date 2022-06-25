@@ -73,7 +73,6 @@ namespace MiniAudio.Entities.Demo {
                 UIDocumentAuthoring.Instance.Name = path.ToString();
             }
 
-            // commandBufferSystem.AddJobHandleForProducer(Dependency);
             audioHandles.Dispose();
             entities.Dispose();
         }
