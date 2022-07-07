@@ -1,6 +1,6 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System.Collections;
 using System.IO;
-using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -16,36 +16,63 @@ namespace MiniAudio.Interop.Tests {
             Assert.IsTrue(File.Exists(audioPath));
         }
 
-        [Test]
-        public void BindingsDoNotThrowErrors() {
+        [UnityTest]
+        public IEnumerator ValidLifeCycleRuntimeTest() {
+            yield return new WaitForSeconds(1);
+            uint handle = uint.MaxValue;
             Assert.DoesNotThrow(() => {
-                DefaultMiniAudioInitializationProxy.Initialize();
-                LogAssert.Expect(LogType.Error, "You are trying to reinitialize the AudioEngine!");
-
                 Assert.True(MiniAudioHandler.IsEngineInitialized());
                 Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));
-                Assert.AreEqual(uint.MaxValue, MiniAudioHandler.LoadSound("", default));
 
-                unsafe {
-                    fixed (char* ptr = audioPath) {
-                        SoundLoadParameters loadParams = new SoundLoadParameters {
-                            Volume = 1.0f
-                        };
-                        uint handle = MiniAudioHandler.UnsafeLoadSound(
-                            new IntPtr(ptr), 
-                            (uint)(sizeof(char) * audioPath.Length), 
-                            new IntPtr(&loadParams));
+                handle = MiniAudioHandler.LoadSound(audioPath, new SoundLoadParameters {
+                    Volume = 1.0f,
+                });
 
-                        Assert.AreNotEqual(uint.MaxValue, handle);
-                        Assert.AreEqual(0, handle);
-                        MiniAudioHandler.UnloadSound(handle);
-                    }
-                }
-                MiniAudioHandler.PlaySound(uint.MaxValue);
-                MiniAudioHandler.StopSound(uint.MaxValue, false);
-                MiniAudioHandler.SetSoundVolume(uint.MaxValue, 0.5f);
-                DefaultMiniAudioInitializationProxy.Release();
+                Assert.AreEqual(0, handle);
+
+                MiniAudioHandler.PlaySound(handle);
             });
+
+            yield return new WaitForSeconds(0.5f);
+            Assert.True(MiniAudioHandler.IsSoundPlaying(handle));
+
+            Assert.DoesNotThrow(() => {
+                MiniAudioHandler.SetSoundVolume(uint.MaxValue, 0.5f);
+                MiniAudioHandler.StopSound(handle, false);
+            });
+
+            yield return new WaitForSeconds(0.5f);
+            Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
+            MiniAudioHandler.UnloadSound(handle);
+        }
+
+        [UnityTest]
+        public IEnumerator InvalidLifeCycleRuntimeTest() {
+            yield return new WaitForSeconds(1);
+            uint handle = uint.MaxValue;
+            Assert.DoesNotThrow(() => {
+                Assert.True(MiniAudioHandler.IsEngineInitialized());
+                Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));
+
+                handle = MiniAudioHandler.LoadSound(string.Empty, new SoundLoadParameters {
+                    Volume = 1.0f,
+                });
+
+                Assert.AreEqual(uint.MaxValue, handle);
+
+                MiniAudioHandler.PlaySound(handle);
+            });
+
+            yield return new WaitForSeconds(0.5f);
+            Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
+
+            Assert.DoesNotThrow(() => {
+                MiniAudioHandler.SetSoundVolume(uint.MaxValue, 0.5f);
+                MiniAudioHandler.StopSound(handle, false);
+            });
+
+            yield return new WaitForSeconds(0.5f);
+            Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
         }
     }
 }

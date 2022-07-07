@@ -17,7 +17,6 @@ namespace MiniAudio.Interop {
 #if UNITY_EDITOR_WIN
         internal static delegate* unmanaged[Cdecl]<bool> IsEngineInitializedHandler;
         internal static delegate* unmanaged[Cdecl]<void> InitializeEngineHandler;
-        internal static delegate* unmanaged[Cdecl]<string, SoundLoadParameters, uint> LoadSoundHandler;
         internal static delegate* unmanaged[Cdecl]<IntPtr, uint, IntPtr, uint> UnsafeLoadSoundHandler;
         internal static delegate* unmanaged[Cdecl]<uint, void> UnloadSoundHandler;
         internal static delegate* unmanaged[Cdecl]<uint, void> PlaySoundHandler;
@@ -59,7 +58,6 @@ namespace MiniAudio.Interop {
 
             IsEngineInitializedHandler = (delegate* unmanaged[Cdecl]<bool>)LibraryHandler.GetFunctionPointer(library, "IsEngineInitialized");
             InitializeEngineHandler = (delegate* unmanaged[Cdecl]<void>)LibraryHandler.GetFunctionPointer(library, "InitializeEngine");
-            LoadSoundHandler = (delegate* unmanaged[Cdecl]<string, SoundLoadParameters, uint>)LibraryHandler.GetFunctionPointer(library, "LoadSound");
             UnsafeLoadSoundHandler = (delegate* unmanaged[Cdecl]<IntPtr, uint, IntPtr, uint>)LibraryHandler.GetFunctionPointer(library, "UnsafeLoadSound");
             UnloadSoundHandler = (delegate* unmanaged[Cdecl]<uint, void>)LibraryHandler.GetFunctionPointer(library, "UnloadSound");
             PlaySoundHandler = (delegate* unmanaged[Cdecl]<uint, void>)LibraryHandler.GetFunctionPointer(library, "PlaySound");
@@ -76,17 +74,16 @@ namespace MiniAudio.Interop {
         public static void ReleaseLibrary() {
 #if UNITY_EDITOR_WIN
             IsEngineInitializedHandler = null;
-            InitializeEngineHandler    = null;
-            LoadSoundHandler           = null;
-            UnsafeLoadSoundHandler     = null;
-            UnloadSoundHandler         = null;
-            PlaySoundHandler           = null;
-            StopSoundHandler           = null;
-            SetSoundVolumeHandler      = null;
-            IsSoundPlayingHandler      = null;
-            IsSoundFinishedHandler     = null;
-            ReleaseEngineHandler       = null;
-            InitializeLoggerHandler    = null;
+            InitializeEngineHandler = null;
+            UnsafeLoadSoundHandler = null;
+            UnloadSoundHandler = null;
+            PlaySoundHandler = null;
+            StopSoundHandler = null;
+            SetSoundVolumeHandler = null;
+            IsSoundPlayingHandler = null;
+            IsSoundFinishedHandler = null;
+            ReleaseEngineHandler = null;
+            InitializeLoggerHandler = null;
 #endif
         }
 
@@ -109,10 +106,20 @@ namespace MiniAudio.Interop {
         }
 
         public static uint LoadSound(string path, SoundLoadParameters loadParams) {
-            if (LoadSoundHandler == null) {
+            if (UnsafeLoadSoundHandler == null) {
                 return uint.MaxValue;
             }
-            return LoadSoundHandler(path, loadParams);
+
+            unsafe {
+                var loadParamsPtr = new IntPtr(&loadParams);
+                fixed (char* head = path) {
+                    var pathPtr = new IntPtr(head);
+                    return UnsafeLoadSound(
+                        pathPtr,
+                        (uint)(path.Length * sizeof(char)),
+                        loadParamsPtr);
+                }
+            }
         }
 
         public static uint UnsafeLoadSound(IntPtr path, uint sizeInBytes, IntPtr loadParams) {
@@ -123,19 +130,27 @@ namespace MiniAudio.Interop {
         }
 
         public static void UnloadSound(uint handle) {
-            UnloadSoundHandler(handle);
+            if (UnloadSoundHandler != null) {
+                UnloadSoundHandler(handle);
+            }
         }
 
         public static void PlaySound(uint handle) {
-            PlaySoundHandler(handle);
+            if (PlaySoundHandler != null) {
+                PlaySoundHandler(handle);
+            }
         }
 
         public static void StopSound(uint handle, bool rewind) {
-            StopSoundHandler(handle, rewind);
+            if (StopSoundHandler != null) {
+                StopSoundHandler(handle, rewind);
+            }
         }
 
         public static void SetSoundVolume(uint handle, float volume) {
-            SetSoundVolumeHandler(handle, volume);
+            if (SetSoundVolumeHandler != null) {
+                SetSoundVolumeHandler(handle, volume);
+            }
         }
 
         public static bool IsSoundPlaying(uint handle) {
@@ -146,14 +161,16 @@ namespace MiniAudio.Interop {
         }
 
         public static bool IsSoundFinished(uint handle) {
-            if (IsSoundFinishedHandler == null) {
+            if (IsSoundFinishedHandler != null) {
                 return false;
             }
             return IsSoundFinishedHandler(handle);
         }
 
         public static void ReleaseEngine() {
-            ReleaseEngineHandler();
+            if (ReleaseEngineHandler != null) {
+                ReleaseEngineHandler();
+            }
         }
 #else
         [DllImport("MiniAudio_Unity_Bindings.dll")]

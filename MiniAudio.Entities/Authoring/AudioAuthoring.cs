@@ -11,7 +11,11 @@ namespace MiniAudio.Entities.Authoring {
         public string Path;
         public SoundLoadParameters Parameters;
 
-        public unsafe void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem) {
+        public unsafe void Convert(
+            Entity entity, 
+            EntityManager dstManager, 
+            GameObjectConversionSystem conversionSystem) {
+
             if (string.IsNullOrEmpty(Path)) {
                 return;
             }
