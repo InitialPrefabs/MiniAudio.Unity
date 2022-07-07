@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace MiniAudio.Interop.Tests {
 
+    // TODO: Add a cc0 audio clip for runtime tests
     public unsafe class MiniAudioHandlerTests {
 
         uint handle = uint.MaxValue;
@@ -52,6 +53,22 @@ namespace MiniAudio.Interop.Tests {
 
             Assert.DoesNotThrow(() => MiniAudioHandler.PlaySound(handle));
             Assert.True(MiniAudioHandler.IsSoundPlaying(handle));
+            Assert.False(MiniAudioHandler.IsSoundFinished(handle));
+            
+            Assert.DoesNotThrow(() => MiniAudioHandler.StopSound(handle, false));
+            Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
+        }
+
+        [Test]
+        public void InvalidSoundLifeCycleTests() {
+            var targetPath = string.Empty;
+            Assert.False(File.Exists(targetPath));
+            handle = MiniAudioHandler.LoadSound(targetPath, new SoundLoadParameters { Volume = 1f });
+
+            Assert.AreEqual(uint.MaxValue, handle);
+
+            Assert.DoesNotThrow(() => MiniAudioHandler.PlaySound(handle));
+            Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
             Assert.False(MiniAudioHandler.IsSoundFinished(handle));
             
             Assert.DoesNotThrow(() => MiniAudioHandler.StopSound(handle, false));
