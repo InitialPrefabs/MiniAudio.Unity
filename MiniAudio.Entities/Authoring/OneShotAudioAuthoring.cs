@@ -1,23 +1,34 @@
+using MiniAudio.Interop;
 using Unity.Entities;
-using UnityEngine;
 
 namespace MiniAudio.Entities.Authoring {
-    public class OneShotAudioAuthoring : MonoBehaviour, IConvertGameObjectToEntity {
+    public class OneShotAudioAuthoring : BaseAudioAuthoring {
 
-        public bool IsPathStreamingAssets;
-        public string Path;
+        public ushort Size = 10;
+        public SoundLoadParameters LoadParameters;
 
-        public void Convert(
-            Entity entity, 
-            EntityManager dstManager, 
+        public override void Convert(
+            Entity entity,
+            EntityManager dstManager,
             GameObjectConversionSystem conversionSystem) {
 
-            if (string.IsNullOrEmpty(Path)) {
-                Debug.LogError("Cannot convert an invalid relative path!");
-                return;
+            var blobAsset = CreatePathBlob();
+            conversionSystem.BlobAssetStore.AddUniqueBlobAsset(ref blobAsset);
+            dstManager.AddComponentData(entity, new Path { Value = blobAsset });
+
+            dstManager.AddBuffer<FreeHandle>(entity);
+            dstManager.AddBuffer<UsedHandle>(entity);
+
+            var buffer = dstManager.AddBuffer<SoundLoadParametersElement>(entity);
+
+            UnityEngine.Debug.Log(Size);
+            for (int i = 0; i < Size; i++) {
+                buffer.Add(LoadParameters);
             }
 
-            var path = IsPathStreamingAssets ? $"/{Path}" : Path;
+            dstManager.AddComponentData(entity, new AudioPoolDescriptor {
+                ReserveCapacity = Size
+            });
         }
     }
 }

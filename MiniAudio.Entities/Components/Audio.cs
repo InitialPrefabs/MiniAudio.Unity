@@ -3,34 +3,27 @@ using Unity.Entities;
 
 namespace MiniAudio.Entities {
 
+    /// <summary>
+    /// Describes the current state of the Audio.
+    /// </summary>
     public enum AudioState : byte {
         Stopped,
         Playing,
         Paused
     }
-    
-    /// Large components for series
-    public struct FreeHandle : IBufferElementData {
-        public uint Value;
 
-        public static implicit operator UsedHandle(FreeHandle handle) {
-            return new UsedHandle { Value = handle.Value };
-        }
-    }
-
-    public struct UsedHandle : IBufferElementData {
-        public uint Value;
-
-        public static implicit operator FreeHandle(UsedHandle handle) {
-            return new FreeHandle { Value = handle.Value };
-        }
-    }
-
+    /// <summary>
+    /// Stores readonly metadata describing where the audio file lives 
+    /// and whether or not it is a relative/absolute path.
+    /// </summary>
     public struct PathBlob {
         public bool IsPathStreamingAssets;
         public BlobArray<char> Path;
     }
 
+    /// <summary>
+    /// The Entity component version of the PathBlob.
+    /// </summary>
     public struct Path : IComponentData {
         public bool IsStreamingAssets => Value.Value.IsPathStreamingAssets;
         public BlobAssetReference<PathBlob> Value;
