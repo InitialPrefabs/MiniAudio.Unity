@@ -12,7 +12,7 @@ namespace MiniAudio.Entities.Systems {
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial class AudioSystem : SystemBase {
 
-        // [BurstCompile]
+        [BurstCompile]
         unsafe struct LoadSoundJob : IJobEntityBatch {
 
             [ReadOnly]
@@ -27,7 +27,7 @@ namespace MiniAudio.Entities.Systems {
             [ReadOnly]
             public ComponentTypeHandle<AudioClip> AudioClipType;
 
-            public ComponentTypeHandle<AudioLoaded> MetadataType;
+            public ComponentTypeHandle<IsAudioLoaded> MetadataType;
 
             public EntityCommandBuffer CommandBuffer;
 
@@ -47,7 +47,7 @@ namespace MiniAudio.Entities.Systems {
                 for (int i = 0; i < batchInChunk.Count; i++) {
                     ref var metadata = ref audioMetadata.ElementAt(i);
 
-                    if (metadata.IsLoaded) {
+                    if (metadata.Value) {
                         continue;
                     }
 
@@ -57,21 +57,22 @@ namespace MiniAudio.Entities.Systems {
 
                     if (loadPath.IsStreamingAssets) {
                         fullPath.AddRangeNoResize(
-                            StreamingPath.GetUnsafeReadOnlyPtr(), 
+                            StreamingPath.GetUnsafeReadOnlyPtr(),
                             StreamingPath.Length);
                     }
+
+                    ref var path = ref loadPath.Value.Value.Path;
+                    fullPath.AddRange(path.GetUnsafePtr(), path.Length);
 
                     var handle = MiniAudioHandler.UnsafeLoadSound(
                         new IntPtr(fullPath.GetUnsafeReadOnlyPtr<char>()),
                         (uint)fullPath.Length,
                         new IntPtr(&audioClip.Parameters));
 
-                    Debug.Log(new string((char*)fullPath.GetUnsafePtr()));
-
                     if (handle != uint.MaxValue) {
                         audioClip.Handle = handle;
                         CommandBuffer.SetComponent(entity, audioClip);
-                        metadata.IsLoaded = true;
+                        metadata.Value = true;
                     }
                     fullPath.Clear();
                 }
@@ -126,7 +127,7 @@ namespace MiniAudio.Entities.Systems {
             public ComponentTypeHandle<AudioClip> AudioClipType;
 
             [ReadOnly]
-            public ComponentTypeHandle<AudioLoaded> MetadataType;
+            public ComponentTypeHandle<IsAudioLoaded> MetadataType;
 
             [ReadOnly]
             public EntityTypeHandle EntityType;
@@ -143,7 +144,7 @@ namespace MiniAudio.Entities.Systems {
                 var stateTypes = batchInChunk.GetNativeArray(AudioStateHistoryType);
                 var entities = batchInChunk.GetNativeArray(EntityType);
                 var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
-                
+
                 for (int i = 0; i < batchInChunk.Count; i++) {
                     var audioClip = audioClips[i];
                     var lastState = stateTypes[i].Value;
@@ -152,7 +153,7 @@ namespace MiniAudio.Entities.Systems {
 
                     MiniAudioHandler.SetSoundVolume(audioClip.Handle, audioClip.Parameters.Volume);
 
-                    if (lastState != audioClip.CurrentState && metadata.IsLoaded) {
+                    if (lastState != audioClip.CurrentState && metadata.Value) {
                         switch (audioClip.CurrentState) {
                             case AudioState.Playing:
                                 MiniAudioHandler.PlaySound(audioClip.Handle);
@@ -181,7 +182,7 @@ namespace MiniAudio.Entities.Systems {
                 All = new[] {
                     ComponentType.ReadOnly<AudioClip>(),
                     ComponentType.ReadOnly<AudioStateHistory>(),
-                    ComponentType.ReadOnly<AudioLoaded>()
+                    ComponentType.ReadOnly<IsAudioLoaded>()
                 },
             });
 
@@ -207,10 +208,10 @@ namespace MiniAudio.Entities.Systems {
 
             var commandBuffer = commandBufferSystem.CreateCommandBuffer();
             new LoadSoundJob {
-                PathBlobType  = GetComponentTypeHandle<Path>(true),
+                PathBlobType = GetComponentTypeHandle<Path>(true),
                 AudioClipType = GetComponentTypeHandle<AudioClip>(true),
-                MetadataType  = GetComponentTypeHandle<AudioLoaded>(false),
-                EntityType    = GetEntityTypeHandle(),
+                MetadataType = GetComponentTypeHandle<IsAudioLoaded>(false),
+                EntityType = GetEntityTypeHandle(),
                 CommandBuffer = commandBuffer,
                 StreamingPath = fixedStreamingPath
             }.Run(soundQuery);
@@ -219,18 +220,18 @@ namespace MiniAudio.Entities.Systems {
 
             new StopSoundJob {
                 AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
-                AudioClipType         = GetComponentTypeHandle<AudioClip>(true),
-                CommandBuffer         = commandBuffer,
-                EntityType            = GetEntityTypeHandle()
+                AudioClipType = GetComponentTypeHandle<AudioClip>(true),
+                CommandBuffer = commandBuffer,
+                EntityType = GetEntityTypeHandle()
             }.Run(soundQuery);
 
             new ManageAudioStateJob() {
                 AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
-                AudioClipType         = GetComponentTypeHandle<AudioClip>(true),
-                MetadataType          = GetComponentTypeHandle<AudioLoaded>(true),
-                CommandBuffer         = commandBuffer,
-                LastSystemVersion     = LastSystemVersion,
-                EntityType            = GetEntityTypeHandle()
+                AudioClipType = GetComponentTypeHandle<AudioClip>(true),
+                MetadataType = GetComponentTypeHandle<IsAudioLoaded>(true),
+                CommandBuffer = commandBuffer,
+                LastSystemVersion = LastSystemVersion,
+                EntityType = GetEntityTypeHandle()
             }.Run(soundQuery);
         }
     }

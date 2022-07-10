@@ -10,20 +10,25 @@ namespace MiniAudio.Entities.Authoring {
         public string Path;
 
         public abstract void Convert(
-            Entity entity, 
-            EntityManager dstManager, 
+            Entity entity,
+            EntityManager dstManager,
             GameObjectConversionSystem conversionSystem);
 
         protected BlobAssetReference<PathBlob> CreatePathBlob() {
             if (string.IsNullOrEmpty(Path)) {
                 throw new System.InvalidOperationException(
-                    "Cannot convert an invalid relative path!");
+                    "Cannot convert an invalid path!");
             }
 
             var path = IsPathStreamingAssets ? $"/{Path}" : Path;
             var builder = new BlobBuilder(Allocator.Temp);
             ref var pathBlob = ref builder.ConstructRoot<PathBlob>();
-            builder.AllocateString(ref pathBlob.Path, path);
+            var charArray = builder.Allocate(ref pathBlob.Path, path.Length);
+
+            for (int i = 0; i < path.Length; i++) {
+                charArray[i] = path[i];
+            }
+
             pathBlob.IsPathStreamingAssets = IsPathStreamingAssets;
             return builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent);
         }
@@ -50,9 +55,8 @@ namespace MiniAudio.Entities.Authoring {
                 Value = AudioState.Stopped
             });
 
-            dstManager.AddComponentData(entity, new AudioLoaded {
-                IsLoaded = false,
-                IsStreamingAssets = IsPathStreamingAssets
+            dstManager.AddComponentData(entity, new IsAudioLoaded {
+                Value = false,
             });
         }
     }

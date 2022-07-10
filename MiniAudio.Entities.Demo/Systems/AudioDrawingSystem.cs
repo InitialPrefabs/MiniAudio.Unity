@@ -5,11 +5,13 @@ using Unity.Entities;
 
 namespace MiniAudio.Entities.Demo {
 
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial class AudioDrawingSystem : SystemBase {
 
         static readonly StringBuilder StringBuilder = new StringBuilder(256);
 
+        /*
         [BurstCompile]
         partial struct AudioQueryJob : IJobEntity {
 
@@ -32,6 +34,7 @@ namespace MiniAudio.Entities.Demo {
                 Names.AddNoResize(fixedString);
             }
         }
+        */
 
         EntityQuery audioQuery;
         EntityCommandBufferSystem commandBufferSystem;
@@ -45,6 +48,7 @@ namespace MiniAudio.Entities.Demo {
         }
 
         protected override void OnUpdate() {
+            /*
             var audioHandles = new NativeList<AudioClip>(
                 audioQuery.CalculateEntityCount(),
                 Allocator.TempJob);
@@ -75,6 +79,7 @@ namespace MiniAudio.Entities.Demo {
 
             audioHandles.Dispose();
             entities.Dispose();
+            */
         }
     }
 }

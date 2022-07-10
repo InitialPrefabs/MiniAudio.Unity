@@ -1,6 +1,4 @@
 using MiniAudio.Interop;
-using System.Runtime.InteropServices;
-using Unity.Collections;
 using Unity.Entities;
 
 namespace MiniAudio.Entities {
@@ -30,7 +28,7 @@ namespace MiniAudio.Entities {
 
     public struct PathBlob {
         public bool IsPathStreamingAssets;
-        public BlobString Path;
+        public BlobArray<char> Path;
     }
 
     public struct Path : IComponentData {
@@ -38,20 +36,12 @@ namespace MiniAudio.Entities {
         public BlobAssetReference<PathBlob> Value;
     }
 
-    [System.Obsolete]
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct LoadPath : IBufferElementData {
-        public char Value;
-    }
-
     /// <summary>
     /// A stand in to describe the audio clip. When DOTS 1.0 rolls out with 
     /// Enable/Disable components, this will be moved into the AudioClip.
     /// </summary>
-    public struct AudioLoaded : IComponentData {
-        [System.Obsolete]
-        public bool IsStreamingAssets;
-        public bool IsLoaded;
+    public struct IsAudioLoaded : IComponentData {
+        public bool Value;
     }
 
     public struct AudioClip : IComponentData {
