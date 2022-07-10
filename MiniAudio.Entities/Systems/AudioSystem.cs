@@ -36,7 +36,9 @@ namespace MiniAudio.Entities.Systems {
 
             public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
                 if (!fullPath.IsCreated) {
-                    fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
+                    fullPath = new NativeList<char>(
+                        StreamingPath.Length, 
+                        Allocator.Temp);
                 }
 
                 var loadPaths = batchInChunk.GetNativeArray(PathBlobType);
@@ -45,9 +47,9 @@ namespace MiniAudio.Entities.Systems {
                 var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
 
                 for (int i = 0; i < batchInChunk.Count; i++) {
-                    ref var metadata = ref audioMetadata.ElementAt(i);
+                    ref var isLoaded = ref audioMetadata.ElementAt(i);
 
-                    if (metadata.Value) {
+                    if (isLoaded.Value) {
                         continue;
                     }
 
@@ -72,8 +74,9 @@ namespace MiniAudio.Entities.Systems {
                     if (handle != uint.MaxValue) {
                         audioClip.Handle = handle;
                         CommandBuffer.SetComponent(entity, audioClip);
-                        metadata.Value = true;
+                        isLoaded.Value = true;
                     }
+                    UnsafeUtility.MemClear(fullPath.GetUnsafePtr(), fullPath.Length * sizeof(char));
                     fullPath.Clear();
                 }
             }
@@ -215,8 +218,6 @@ namespace MiniAudio.Entities.Systems {
                 CommandBuffer = commandBuffer,
                 StreamingPath = fixedStreamingPath
             }.Run(soundQuery);
-
-            return;
 
             new StopSoundJob {
                 AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
