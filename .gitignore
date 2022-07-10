@@ -2,3 +2,5 @@
 Plugins/*
 !Plugins/MiniAudio_Unity_Bindings.dll
 !Plugins/MiniAudio_Unity_Bindings.dll.meta
+!Plugins/MiniAudio_Unity_Stub.dll
+!Plugins/MiniAudio_Unity_Stub.dll.meta
