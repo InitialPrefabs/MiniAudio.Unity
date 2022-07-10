@@ -1,32 +1,46 @@
 using MiniAudio.Interop;
-using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
 namespace MiniAudio.Entities.Authoring {
 
-    public class AudioAuthoring : MonoBehaviour, IConvertGameObjectToEntity {
-
+    public abstract class BaseAudioAuthoring : MonoBehaviour, IConvertGameObjectToEntity {
         public bool IsPathStreamingAssets;
         public string Path;
-        public SoundLoadParameters Parameters;
 
-        public unsafe void Convert(
+        public abstract void Convert(
             Entity entity, 
             EntityManager dstManager, 
-            GameObjectConversionSystem conversionSystem) {
+            GameObjectConversionSystem conversionSystem);
 
+        protected BlobAssetReference<PathBlob> CreatePathBlob() {
             if (string.IsNullOrEmpty(Path)) {
-                return;
+                throw new System.InvalidOperationException(
+                    "Cannot convert an invalid relative path!");
             }
 
             var path = IsPathStreamingAssets ? $"/{Path}" : Path;
+            var builder = new BlobBuilder(Allocator.Temp);
+            ref var pathBlob = ref builder.ConstructRoot<PathBlob>();
+            builder.AllocateString(ref pathBlob.Path, path);
+            pathBlob.IsPathStreamingAssets = IsPathStreamingAssets;
+            return builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent);
+        }
+    }
 
-            var buffer = dstManager.AddBuffer<LoadPath>(entity);
-            buffer.ResizeUninitialized(path.Length);
-            fixed (char* head = path) {
-                UnsafeUtility.MemCpy(buffer.GetUnsafePtr(), head, sizeof(char) * path.Length);
-            }
+    public class AudioAuthoring : BaseAudioAuthoring {
+
+        public SoundLoadParameters Parameters;
+
+        public override void Convert(
+            Entity entity,
+            EntityManager dstManager,
+            GameObjectConversionSystem conversionSystem) {
+
+            var blobAsset = CreatePathBlob();
+            conversionSystem.BlobAssetStore.AddUniqueBlobAsset(ref blobAsset);
+            dstManager.AddComponentData(entity, new Path { Value = blobAsset });
 
             var audioClip = AudioClip.New();
             Parameters.Volume = Mathf.Pow(Parameters.Volume, 2);
@@ -36,7 +50,7 @@ namespace MiniAudio.Entities.Authoring {
                 Value = AudioState.Stopped
             });
 
-            dstManager.AddComponentData(entity, new AudioMetadata {
+            dstManager.AddComponentData(entity, new AudioLoaded {
                 IsLoaded = false,
                 IsStreamingAssets = IsPathStreamingAssets
             });
