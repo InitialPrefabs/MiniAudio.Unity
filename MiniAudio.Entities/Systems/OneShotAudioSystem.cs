@@ -27,8 +27,6 @@ namespace MiniAudio.Entities.Systems {
 
             public BufferTypeHandle<FreeHandle> FreeHandleType;
 
-            public BufferTypeHandle<UsedHandle> UsedHandleType;
-
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
@@ -38,7 +36,6 @@ namespace MiniAudio.Entities.Systems {
                 }
 
                 var freeHandles = batchInChunk.GetBufferAccessor(FreeHandleType);
-                var usedHandles = batchInChunk.GetBufferAccessor(UsedHandleType);
                 var soundLoadParams = batchInChunk.GetBufferAccessor(SoundLoadParamsType);
                 var poolDescriptors = batchInChunk.GetNativeArray(PoolDescriptorType);
                 var paths = batchInChunk.GetNativeArray(PathType);
@@ -51,7 +48,7 @@ namespace MiniAudio.Entities.Systems {
 
                     var loadPath = paths[i];
                     var freeHandleBuffer = freeHandles[i];
-                    var usedHandleBuffer = usedHandles[i];
+                    freeHandleBuffer.Clear();
 
                     freeHandleBuffer.ResizeUninitialized(poolDescriptors.Length);
 
@@ -65,8 +62,7 @@ namespace MiniAudio.Entities.Systems {
                     fullPath.AddRange(path.GetUnsafePtr(), path.Length);
 
                     var soundLoadParamArray = soundLoadParams[i].AsNativeArray();
-
-                    for (int j = 0; j < soundLoadParamArray.Length; j++) {
+                    for (int j = 0; j < poolDescriptor.ReserveCapacity; j++) {
                         var soundLoadParam = soundLoadParamArray[j];
                         var handle = MiniAudioHandler.UnsafeLoadSound(
                             new IntPtr(fullPath.GetUnsafeReadOnlyPtr<char>()),
@@ -114,7 +110,6 @@ namespace MiniAudio.Entities.Systems {
         protected override void OnUpdate() {
             new InitializePooledAudioJob {
                 FreeHandleType = GetBufferTypeHandle<FreeHandle>(false),
-                UsedHandleType = GetBufferTypeHandle<UsedHandle>(false),
                 PathType = GetComponentTypeHandle<Path>(true),
                 PoolDescriptorType = GetComponentTypeHandle<AudioPoolDescriptor>(false),
                 SoundLoadParamsType = GetBufferTypeHandle<SoundLoadParametersElement>(true),

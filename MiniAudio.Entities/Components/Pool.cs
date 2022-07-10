@@ -53,12 +53,6 @@ namespace MiniAudio.Entities {
         }
     }
 
-    /// <summary>
-    /// Describes that the <see cref="MiniAudio.Entities.Systems.OneShotAudioSystem"/> 
-    /// must initialize the <see cref="FreeHandle"/>.
-    /// </summary>
-    public struct InitializePoolTag : IComponentData { }
-
     public struct AudioPoolDescriptor : IComponentData {
         public ushort ReserveCapacity;
         public bool IsLoaded;
