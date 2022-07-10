@@ -48,7 +48,6 @@ namespace MiniAudio.Entities.Authoring {
             dstManager.AddComponentData(entity, new Path { Value = blobAsset });
 
             var audioClip = AudioClip.New();
-            Parameters.Volume = Mathf.Pow(Parameters.Volume, 2);
             audioClip.Parameters = Parameters;
             dstManager.AddComponentData(entity, audioClip);
             dstManager.AddComponentData(entity, new AudioStateHistory {

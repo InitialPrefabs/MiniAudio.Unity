@@ -21,7 +21,6 @@ namespace MiniAudio.Entities.Authoring {
 
             var buffer = dstManager.AddBuffer<SoundLoadParametersElement>(entity);
 
-            UnityEngine.Debug.Log(Size);
             for (int i = 0; i < Size; i++) {
                 buffer.Add(LoadParameters);
             }
@@ -29,6 +28,8 @@ namespace MiniAudio.Entities.Authoring {
             dstManager.AddComponentData(entity, new AudioPoolDescriptor {
                 ReserveCapacity = Size
             });
+
+            dstManager.AddBuffer<OneShotAudioState>(entity);
         }
     }
 }

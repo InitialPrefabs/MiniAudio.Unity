@@ -19,6 +19,16 @@ namespace MiniAudio.Entities {
         }
     }
 
+    public struct OneShotAudioState : IBufferElementData {
+        public AudioState Value;
+
+        public static implicit operator OneShotAudioState(AudioState state) {
+            return new OneShotAudioState {
+                Value = state
+            };
+        }
+    }
+
     /// <summary>
     /// A 1:1 mapping of <see cref="MiniAudio.Interop.SoundLoadParameters"/>.
     /// </summary>
@@ -53,9 +63,10 @@ namespace MiniAudio.Entities {
         }
     }
 
-    public struct AudioPoolDescriptor : IComponentData {
+    public struct AudioPoolDescriptor : ISystemStateComponentData {
         public ushort ReserveCapacity;
         public bool IsLoaded;
+        public uint ID;
     }
 }
 
