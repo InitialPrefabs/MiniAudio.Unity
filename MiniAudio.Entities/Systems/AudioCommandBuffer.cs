@@ -11,6 +11,18 @@ namespace MiniAudio.Entities.Systems {
         unsafe internal UnsafeList<uint>* PlaybackIds;
         internal readonly Allocator Allocator;
 
+        public AudioCommandBuffer(Allocator allocator) {
+            Allocator = allocator;
+            unsafe {
+                PlaybackIds = (UnsafeList<uint>*)UnsafeUtility.Malloc(
+                    UnsafeUtility.SizeOf<UnsafeList<uint>>(),
+                    UnsafeUtility.AlignOf<UnsafeList<uint>>(),
+                    allocator);
+
+                *PlaybackIds = new UnsafeList<uint>(10, allocator);
+            }
+        }
+
         public void Dispose() {
             unsafe {
                 if (PlaybackIds != null) {
@@ -27,10 +39,14 @@ namespace MiniAudio.Entities.Systems {
     public static class AudioCommandBufferExtensions {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal unsafe static void RequestInternal<T>(
-            this ref AudioCommandBuffer buffer, T path) where T : unmanaged, IUTF8Bytes, INativeList<byte> {
+        internal unsafe static void RequestInternal<T>(this ref AudioCommandBuffer buffer, T path)
+                where T : unmanaged, IUTF8Bytes, INativeList<byte> {
             byte* head = path.GetUnsafePtr();
-            var id = math.hash(head, path.Length);
+
+            var size = path.Length * 2;
+            char* c = stackalloc char[size];
+            Unicode.Utf8ToUtf16(head, path.Length, c, out int utf16Length, size);
+            var id = math.hash(c, path.Length * 2);
             buffer.PlaybackIds->Add(in id);
         }
 

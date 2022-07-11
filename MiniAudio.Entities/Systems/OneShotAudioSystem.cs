@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace MiniAudio.Entities.Systems {
 
-    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(AudioSystem))]
     public partial class OneShotAudioSystem : SystemBase {
 

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace MiniAudio.Entities.Systems {
 
-    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     public partial class AudioSystem : SystemBase {
 
         [BurstCompile]
