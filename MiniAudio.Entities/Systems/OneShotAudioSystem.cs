@@ -10,6 +10,8 @@ using UnityEngine;
 
 namespace MiniAudio.Entities.Systems {
 
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateAfter(typeof(AudioSystem))]
     public partial class OneShotAudioSystem : SystemBase {
 
         [BurstCompile]
@@ -36,6 +38,8 @@ namespace MiniAudio.Entities.Systems {
 
             public BufferTypeHandle<FreeHandle> FreeHandleType;
 
+            public EntityCommandBuffer CommandBuffer;
+
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
@@ -60,6 +64,7 @@ namespace MiniAudio.Entities.Systems {
                     var loadPath = paths[i];
                     var freeHandleBuffer = freeHandles[i];
                     var oneShotAudioStateBuffer = oneshotAudioStates[i];
+                    var entity = entities[i];
 
                     oneShotAudioStateBuffer.Clear();
                     freeHandleBuffer.Clear();
@@ -74,11 +79,12 @@ namespace MiniAudio.Entities.Systems {
                     fullPath.AddRange(path.GetUnsafePtr(), path.Length);
 
                     // Hash the path so we can store the entities and do quick lookup.
-                    poolDescriptor.ID = math.hash(
-                        fullPath.GetUnsafePtr(),
-                        path.Length * sizeof(char));
+                    var poolId = new AudioPoolID {
+                        Value = math.hash(path.GetUnsafePtr(), path.Length * sizeof(char))
+                    };
+                    CommandBuffer.AddComponent(entity, poolId);
 
-                    EntityLookUp.TryAdd(poolDescriptor.ID, entities[i]);
+                    EntityLookUp.TryAdd(poolId.Value, entities[i]);
 
                     var soundLoadParamArray = soundLoadParams[i].AsNativeArray();
                     for (int j = 0; j < poolDescriptor.ReserveCapacity; j++) {
@@ -107,12 +113,12 @@ namespace MiniAudio.Entities.Systems {
             public NativeParallelHashMap<uint, Entity> EntityLookUp;
 
             [ReadOnly]
-            public ComponentTypeHandle<AudioPoolDescriptor> AudioPoolDescriptorType;
+            public ComponentTypeHandle<AudioPoolID> AudioPoolDescriptorType;
 
             public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
                 var audioPoolDescriptors = batchInChunk.GetNativeArray(AudioPoolDescriptorType);
                 for (int i = 0; i < batchInChunk.Count; i++) {
-                    EntityLookUp.Remove(audioPoolDescriptors[i].ID);
+                    EntityLookUp.Remove(audioPoolDescriptors[i].Value);
                 }
             }
         }
@@ -121,7 +127,6 @@ namespace MiniAudio.Entities.Systems {
         EntityQuery cleanUpEntityQuery;
         NativeArray<char> fixedStreamingPath;
         NativeParallelHashMap<uint, Entity> entityLookUp;
-
         EntityCommandBufferSystem commandBufferSystem;
 
         protected override void OnCreate() {
@@ -129,21 +134,25 @@ namespace MiniAudio.Entities.Systems {
                 All = new[] {
                     ComponentType.ReadWrite<AudioPoolDescriptor>(),
                     ComponentType.ReadWrite<FreeHandle>(),
+                    ComponentType.ReadWrite<OneShotAudioState>(),
                     ComponentType.ReadOnly<UsedHandle>(),
                     ComponentType.ReadOnly<SoundLoadParametersElement>(),
-                    ComponentType.ReadWrite<OneShotAudioState>()
+                },
+                None = new[] {
+                    ComponentType.ReadWrite<AudioPoolID>()
                 }
             });
 
             cleanUpEntityQuery = GetEntityQuery(new EntityQueryDesc {
                 All = new[] {
-                    ComponentType.ReadWrite<AudioPoolDescriptor>()
+                    ComponentType.ReadWrite<AudioPoolID>()
                 },
                 None = new[] {
-                    ComponentType.ReadWrite<FreeHandle>(),
+                    ComponentType.ReadWrite<AudioPoolDescriptor>(),
+                    ComponentType.ReadOnly<FreeHandle>(),
                     ComponentType.ReadOnly<UsedHandle>(),
                     ComponentType.ReadOnly<SoundLoadParametersElement>(),
-                    ComponentType.ReadWrite<OneShotAudioState>()
+                    ComponentType.ReadOnly<OneShotAudioState>()
                 }
             });
 
@@ -169,6 +178,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         protected override void OnUpdate() {
+            var commandBuffer = commandBufferSystem.CreateCommandBuffer();
             new InitializePooledAudioJob {
                 PathType = GetComponentTypeHandle<Path>(true),
                 SoundLoadParamsType = GetBufferTypeHandle<SoundLoadParametersElement>(true),
@@ -178,17 +188,18 @@ namespace MiniAudio.Entities.Systems {
                 EntityType = GetEntityTypeHandle(),
                 StreamingPath = fixedStreamingPath,
                 EntityLookUp = entityLookUp,
+                CommandBuffer = commandBuffer
             }.Run(uninitializeAudioPoolQuery);
 
             if (!cleanUpEntityQuery.IsEmpty) {
                 new RemoveTrackedPooledEntityJob {
-                    AudioPoolDescriptorType = GetComponentTypeHandle<AudioPoolDescriptor>(true),
+                    AudioPoolDescriptorType = GetComponentTypeHandle<AudioPoolID>(true),
                     EntityLookUp = entityLookUp
                 }.Run(cleanUpEntityQuery);
 
-                var commandBuffer = commandBufferSystem.CreateCommandBuffer();
                 commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
             }
+            commandBufferSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }

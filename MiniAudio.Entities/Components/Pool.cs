@@ -63,10 +63,13 @@ namespace MiniAudio.Entities {
         }
     }
 
-    public struct AudioPoolDescriptor : ISystemStateComponentData {
+    public struct AudioPoolDescriptor : IComponentData {
         public ushort ReserveCapacity;
         public bool IsLoaded;
-        public uint ID;
+    }
+
+    public struct AudioPoolID : ISystemStateComponentData {
+        public uint Value;
     }
 }
 
