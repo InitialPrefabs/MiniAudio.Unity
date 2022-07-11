@@ -90,7 +90,7 @@ namespace MiniAudio.Entities.Systems {
                     for (int j = 0; j < poolDescriptor.ReserveCapacity; j++) {
                         var soundLoadParam = soundLoadParamArray[j];
                         var handle = MiniAudioHandler.UnsafeLoadSound(
-                            new IntPtr(fullPath.GetUnsafeReadOnlyPtr<char>()),
+                            new IntPtr(fullPath.GetUnsafeReadOnlyPtr()),
                             (uint)fullPath.Length,
                             new IntPtr(&soundLoadParam));
 
@@ -99,6 +99,10 @@ namespace MiniAudio.Entities.Systems {
                             oneShotAudioStateBuffer.Add(AudioState.Stopped);
                         }
                     }
+
+                    var audioCmdBuffer = new AudioCommandBuffer();
+                    audioCmdBuffer.Request("Audio/Stronghold.ogg");
+
 
                     poolDescriptor.IsLoaded = true;
                     fullPath.Clear();
