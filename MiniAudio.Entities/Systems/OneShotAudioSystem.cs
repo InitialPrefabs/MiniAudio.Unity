@@ -5,6 +5,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -127,11 +128,36 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
+        // TODO: Finish implementing.
+        // [BurstCompile]
+        unsafe struct PlaybackCommandBufferJob : IJobFor {
+
+            [ReadOnly]
+            public NativeArray<AudioCommandBuffer> AudioCommandBuffers;
+
+            [ReadOnly]
+            public NativeParallelHashMap<uint, Entity> EntityLookUp;
+
+            public void Execute(int index) {
+                var commandBuffer = AudioCommandBuffers[index];
+                for (int i = 0; i < commandBuffer.PlaybackIds->Length; i++) {
+                    var id = commandBuffer.PlaybackIds->ElementAt(i);
+                    if (EntityLookUp.TryGetValue(id, out Entity entity)) {
+                        throw new System.NotImplementedException();
+                    }
+                }
+            }
+        }
+
         EntityQuery uninitializeAudioPoolQuery;
         EntityQuery cleanUpEntityQuery;
+
         NativeArray<char> fixedStreamingPath;
         NativeParallelHashMap<uint, Entity> entityLookUp;
+        NativeList<AudioCommandBuffer> audioCommandBuffers;
+
         EntityCommandBufferSystem commandBufferSystem;
+        JobHandle frameDependency;
 
         protected override void OnCreate() {
             uninitializeAudioPoolQuery = GetEntityQuery(new EntityQueryDesc {
@@ -168,7 +194,8 @@ namespace MiniAudio.Entities.Systems {
             }
 
             entityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
-            commandBufferSystem = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
+            audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
+            commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
         }
 
         protected override void OnDestroy() {
@@ -179,9 +206,16 @@ namespace MiniAudio.Entities.Systems {
             if (entityLookUp.IsCreated) {
                 entityLookUp.Dispose();
             }
+
+            if (audioCommandBuffers.IsCreated) {
+                audioCommandBuffers.Dispose();
+            }
         }
 
         protected override void OnUpdate() {
+            frameDependency.Complete();
+            frameDependency = default;
+
             var commandBuffer = commandBufferSystem.CreateCommandBuffer();
             new InitializePooledAudioJob {
                 PathType = GetComponentTypeHandle<Path>(true),
@@ -204,6 +238,16 @@ namespace MiniAudio.Entities.Systems {
                 commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
             }
             commandBufferSystem.AddJobHandleForProducer(Dependency);
+        }
+
+        public AudioCommandBuffer CreateCommandBuffer(Allocator allocator = Allocator.TempJob) {
+            var cmdBuffer = new AudioCommandBuffer(allocator);
+            audioCommandBuffers.Add(cmdBuffer);
+            return cmdBuffer;
+        }
+
+        public void AddJobHandleForProducer(JobHandle jobHandle) {
+            JobHandle.CombineDependencies(jobHandle, frameDependency);
         }
     }
 }

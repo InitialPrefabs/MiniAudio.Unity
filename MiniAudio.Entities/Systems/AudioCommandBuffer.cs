@@ -38,6 +38,12 @@ namespace MiniAudio.Entities.Systems {
 
     public static class AudioCommandBufferExtensions {
 
+        public static ref uint ElementAt(this ref AudioCommandBuffer buffer, int i) {
+            unsafe {
+                return ref buffer.PlaybackIds->ElementAt(i);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe static void RequestInternal<T>(this ref AudioCommandBuffer buffer, T path)
                 where T : unmanaged, IUTF8Bytes, INativeList<byte> {
