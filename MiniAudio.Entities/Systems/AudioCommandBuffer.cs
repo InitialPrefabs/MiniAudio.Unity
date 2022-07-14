@@ -8,6 +8,7 @@ namespace MiniAudio.Entities.Systems {
 
     public struct AudioCommandBuffer : IDisposable {
 
+        [NativeDisableUnsafePtrRestriction]
         unsafe internal UnsafeList<uint>* PlaybackIds;
         internal readonly Allocator Allocator;
 

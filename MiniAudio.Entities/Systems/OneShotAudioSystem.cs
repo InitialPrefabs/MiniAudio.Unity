@@ -15,7 +15,7 @@ namespace MiniAudio.Entities.Systems {
     [UpdateAfter(typeof(AudioSystem))]
     public partial class OneShotAudioSystem : SystemBase {
 
-        [BurstCompile]
+        // [BurstCompile]
         unsafe struct InitializePooledAudioJob : IJobEntityBatch {
 
             [WriteOnly]
@@ -92,18 +92,16 @@ namespace MiniAudio.Entities.Systems {
                         var soundLoadParam = soundLoadParamArray[j];
                         var handle = MiniAudioHandler.UnsafeLoadSound(
                             new IntPtr(fullPath.GetUnsafeReadOnlyPtr()),
-                            (uint)fullPath.Length,
+                            (uint)fullPath.Length * sizeof(char),
                             new IntPtr(&soundLoadParam));
+
+                        UnityEngine.Debug.Log(handle);
 
                         if (handle != uint.MaxValue) {
                             freeHandleBuffer.Add(new FreeHandle { Value = handle });
                             oneShotAudioStateBuffer.Add(AudioState.Stopped);
                         }
                     }
-
-                    var audioCmdBuffer = new AudioCommandBuffer();
-                    audioCmdBuffer.Request("Audio/Stronghold.ogg");
-
 
                     poolDescriptor.IsLoaded = true;
                     fullPath.Clear();
@@ -210,12 +208,13 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
+        internal NativeParallelHashMap<uint, Entity> EntityLookUp;
+
         EntityQuery uninitializeAudioPoolQuery;
         EntityQuery cleanUpEntityQuery;
         EntityQuery oneShotAudioQuery;
 
         NativeArray<char> fixedStreamingPath;
-        NativeParallelHashMap<uint, Entity> entityLookUp;
         NativeList<AudioCommandBuffer> audioCommandBuffers;
 
         EntityCommandBufferSystem commandBufferSystem;
@@ -261,7 +260,7 @@ namespace MiniAudio.Entities.Systems {
                 fixedStreamingPath[i] = streamingPath[i];
             }
 
-            entityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
+            EntityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
             audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
             commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
         }
@@ -271,8 +270,8 @@ namespace MiniAudio.Entities.Systems {
                 fixedStreamingPath.Dispose();
             }
 
-            if (entityLookUp.IsCreated) {
-                entityLookUp.Dispose();
+            if (EntityLookUp.IsCreated) {
+                EntityLookUp.Dispose();
             }
 
             if (audioCommandBuffers.IsCreated) {
@@ -294,7 +293,7 @@ namespace MiniAudio.Entities.Systems {
                 OneShotAudioStateType = GetBufferTypeHandle<OneShotAudioState>(false),
                 EntityType = GetEntityTypeHandle(),
                 StreamingPath = fixedStreamingPath,
-                EntityLookUp = entityLookUp,
+                EntityLookUp = EntityLookUp,
                 CommandBuffer = commandBuffer
             }.Run(uninitializeAudioPoolQuery);
 
@@ -303,10 +302,26 @@ namespace MiniAudio.Entities.Systems {
                 UsedHandleType = GetBufferTypeHandle<UsedHandle>(false),
             }.Run(oneShotAudioQuery);
 
+            if (audioCommandBuffers.Length > 0) {
+
+                new PlaybackCommandBufferJob {
+                    AudioCommandBuffers = audioCommandBuffers,
+                    EntityLookUp = EntityLookUp,
+                    FreeHandles = GetBufferFromEntity<FreeHandle>(false),
+                    UsedHandles = GetBufferFromEntity<UsedHandle>(false),
+                }.Run(audioCommandBuffers.Length);
+
+                // Perform the clean up
+                for (int i = 0; i < audioCommandBuffers.Length; i++) {
+                    var audioCommandBuffer = audioCommandBuffers[i];
+                    audioCommandBuffer.Dispose();
+                }
+            }
+
             if (!cleanUpEntityQuery.IsEmpty) {
                 new RemoveTrackedPooledEntityJob {
                     AudioPoolDescriptorType = GetComponentTypeHandle<AudioPoolID>(true),
-                    EntityLookUp = entityLookUp
+                    EntityLookUp = EntityLookUp
                 }.Run(cleanUpEntityQuery);
 
                 commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
