@@ -15,7 +15,7 @@ namespace MiniAudio.Entities.Systems {
     [UpdateAfter(typeof(AudioSystem))]
     public partial class OneShotAudioSystem : SystemBase {
 
-        // [BurstCompile]
+        [BurstCompile]
         unsafe struct InitializePooledAudioJob : IJobEntityBatch {
 
             [WriteOnly]
@@ -92,10 +92,8 @@ namespace MiniAudio.Entities.Systems {
                         var soundLoadParam = soundLoadParamArray[j];
                         var handle = MiniAudioHandler.UnsafeLoadSound(
                             new IntPtr(fullPath.GetUnsafeReadOnlyPtr()),
-                            (uint)fullPath.Length * sizeof(char),
+                            (uint)fullPath.Length,
                             new IntPtr(&soundLoadParam));
-
-                        UnityEngine.Debug.Log(handle);
 
                         if (handle != uint.MaxValue) {
                             freeHandleBuffer.Add(new FreeHandle { Value = handle });

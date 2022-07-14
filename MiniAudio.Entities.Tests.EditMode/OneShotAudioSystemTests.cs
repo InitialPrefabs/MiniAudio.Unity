@@ -37,6 +37,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
         public override void Setup() {
             base.Setup();
             DefaultMiniAudioInitializationProxy.Initialize();
+            Assert.True(MiniAudioHandler.IsEngineInitialized());
             entityCommandBufferSystem = World
                 .GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
             oneShotAudioSystem = World.CreateSystem<OneShotAudioSystem>();
@@ -49,14 +50,47 @@ namespace MiniAudio.Entities.Tests.EditMode {
                     ComponentType.ReadWrite<UsedHandle>()
                 }
             });
-
-
         }
 
         [TearDown]
         public override void TearDown() {
             base.TearDown();
             DefaultMiniAudioInitializationProxy.Release();
+        }
+
+        [Test]
+        public void BlobFileExists() {
+            var entity = m_Manager.CreateEntity();
+            var builder = new BlobBuilder(Allocator.Temp);
+            ref var pathBlob = ref builder.ConstructRoot<PathBlob>();
+            var charArray = builder.Allocate<char>(ref pathBlob.Path, path.Length);
+
+            for (int i = 0; i < path.Length; i++) {
+                charArray[i] = path[i];
+            }
+
+            pathBlob.IsPathStreamingAssets = true;
+
+            var pathComp = new Path {
+                Value = builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent)
+            };
+
+            m_Manager.AddComponentData(entity, pathComp);
+
+            bool tested = false;
+
+            Entities.ForEach((ref Path pathComp1) => {
+                ref var pathArray = ref pathComp.Value.Value.Path;
+                void* head = pathArray.GetUnsafePtr();
+                var loadParams = new SoundLoadParametersElement {
+                    Volume = 1.0f
+                };
+                var handle = MiniAudioHandler.UnsafeLoadSound(new IntPtr(head), (uint)pathArray.Length * 2, new IntPtr(&loadParams));
+                Assert.AreNotEqual(uint.MaxValue, handle);
+                MiniAudioHandler.UnloadSound(handle);
+                tested = true;
+            });
+            Assert.True(tested);
         }
 
         [Test]
@@ -138,7 +172,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 charArray[i] = path[i];
             }
 
-            pathBlob.IsPathStreamingAssets = true;
+            // pathBlob.IsPathStreamingAssets = true;
 
             m_Manager.AddComponentData(entity, new Path {
                 Value = builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent)
