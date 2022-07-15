@@ -32,7 +32,7 @@ namespace MiniAudio.Entities {
     /// <summary>
     /// A 1:1 mapping of <see cref="MiniAudio.Interop.SoundLoadParameters"/>.
     /// </summary>
-    public struct SoundLoadParametersElement : IBufferElementData {
+    public struct AliasSoundLoadParameters : IComponentData {
         /// <summary>
         /// Is the AudioClip looping?
         /// </summary>
@@ -53,8 +53,8 @@ namespace MiniAudio.Entities {
         /// </summary>
         public uint EndTime;
 
-        public static implicit operator SoundLoadParametersElement(SoundLoadParameters value) {
-            return new SoundLoadParametersElement {
+        public static implicit operator AliasSoundLoadParameters(SoundLoadParameters value) {
+            return new AliasSoundLoadParameters {
                 EndTime = value.EndTime,
                 IsLooping = value.IsLooping,
                 StartTime = value.StartTime,

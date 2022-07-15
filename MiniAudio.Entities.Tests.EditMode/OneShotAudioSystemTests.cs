@@ -82,12 +82,12 @@ namespace MiniAudio.Entities.Tests.EditMode {
             Entities.ForEach((ref Path pathComp1) => {
                 ref var pathArray = ref pathComp.Value.Value.Path;
                 void* head = pathArray.GetUnsafePtr();
-                var loadParams = new SoundLoadParametersElement {
+                var loadParams = new AliasSoundLoadParameters {
                     Volume = 1.0f
                 };
                 var handle = MiniAudioHandler.UnsafeLoadSound(
-                    new IntPtr(head), 
-                    (uint)pathArray.Length, 
+                    new IntPtr(head),
+                    (uint)pathArray.Length,
                     new IntPtr(&loadParams));
                 Assert.AreNotEqual(uint.MaxValue, handle);
                 MiniAudioHandler.UnloadSound(handle);
@@ -100,10 +100,10 @@ namespace MiniAudio.Entities.Tests.EditMode {
         public void FileExists() {
             Assert.True(File.Exists(path));
             fixed (char* ptr = path) {
-                var param = new SoundLoadParametersElement();
+                var param = new AliasSoundLoadParameters();
                 var handle = MiniAudioHandler.UnsafeLoadSound(
-                    new IntPtr(ptr), 
-                    (uint)path.Length * sizeof(char), 
+                    new IntPtr(ptr),
+                    (uint)path.Length * sizeof(char),
                     new IntPtr(&param));
 
                 Assert.AreNotEqual(uint.MaxValue, handle);
@@ -124,21 +124,21 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             Entities.ForEach((
                 DynamicBuffer<FreeHandle> freeHandles,
-                ref AudioPoolDescriptor desc, 
+                ref AudioPoolDescriptor desc,
                 ref AudioPoolID id,
                 ref Path pathComp) => {
 
-                Assert.True(desc.IsLoaded);
-                fixed (char* ptr = path) {
-                    var expectedID = math.hash(ptr, sizeof(char) * path.Length);
-                    Assert.AreEqual(expectedID, id.Value);
-                }
+                    Assert.True(desc.IsLoaded);
+                    fixed (char* ptr = path) {
+                        var expectedID = math.hash(ptr, sizeof(char) * path.Length);
+                        Assert.AreEqual(expectedID, id.Value);
+                    }
 
-                ref var pathArray = ref pathComp.Value.Value.Path;
-                var builtPath = new string((char*)pathArray.GetUnsafePtr(), 0, pathArray.Length);
+                    ref var pathArray = ref pathComp.Value.Value.Path;
+                    var builtPath = new string((char*)pathArray.GetUnsafePtr(), 0, pathArray.Length);
 
-                Assert.AreEqual(10, freeHandles.Length, $"Failed to load {builtPath}");
-            });
+                    Assert.AreEqual(10, freeHandles.Length, $"Failed to load {builtPath}");
+                });
         }
 
         [Test]
@@ -161,10 +161,10 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 DynamicBuffer<FreeHandle> freeHandles,
                 DynamicBuffer<UsedHandle> usedHandles) => {
 
-                Assert.AreEqual(freeHandles.Length + usedHandles.Length, desc.ReserveCapacity);
-                Assert.True(MiniAudioHandler.IsSoundPlaying(usedHandles[0].Value));
-                tested = true;
-            });
+                    Assert.AreEqual(freeHandles.Length + usedHandles.Length, desc.ReserveCapacity);
+                    Assert.True(MiniAudioHandler.IsSoundPlaying(usedHandles[0].Value));
+                    tested = true;
+                });
 
             Assert.True(tested);
         }
@@ -187,13 +187,9 @@ namespace MiniAudio.Entities.Tests.EditMode {
             m_Manager.AddBuffer<FreeHandle>(entity);
             m_Manager.AddBuffer<UsedHandle>(entity);
 
-            var buffer = m_Manager.AddBuffer<SoundLoadParametersElement>(entity);
-
-            for (int i = 0; i < 10; i++) {
-                buffer.Add(new SoundLoadParametersElement {
-                    Volume = 1.0f
-                });
-            }
+            var buffer = m_Manager.AddComponentData(entity, new AliasSoundLoadParameters {
+                Volume = 1.0f
+            });
 
             m_Manager.AddComponentData(entity, new AudioPoolDescriptor {
                 ReserveCapacity = 10

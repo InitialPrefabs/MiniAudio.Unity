@@ -31,7 +31,7 @@ namespace MiniAudio.Entities.Systems {
             public ComponentTypeHandle<Path> PathType;
 
             [ReadOnly]
-            public BufferTypeHandle<SoundLoadParametersElement> SoundLoadParamsType;
+            public ComponentTypeHandle<AliasSoundLoadParameters> SoundLoadParamsType;
 
             public ComponentTypeHandle<AudioPoolDescriptor> PoolDescriptorType;
 
@@ -50,7 +50,7 @@ namespace MiniAudio.Entities.Systems {
                 }
 
                 var freeHandles = batchInChunk.GetBufferAccessor(FreeHandleType);
-                var soundLoadParams = batchInChunk.GetBufferAccessor(SoundLoadParamsType);
+                var soundLoadParams = batchInChunk.GetNativeArray(SoundLoadParamsType);
                 var poolDescriptors = batchInChunk.GetNativeArray(PoolDescriptorType);
                 var oneshotAudioStates = batchInChunk.GetBufferAccessor(OneShotAudioStateType);
                 var paths = batchInChunk.GetNativeArray(PathType);
@@ -86,10 +86,9 @@ namespace MiniAudio.Entities.Systems {
                     CommandBuffer.AddComponent(entity, poolId);
 
                     EntityLookUp.TryAdd(poolId.Value, entities[i]);
+                    var soundLoadParam = soundLoadParams[i];
 
-                    var soundLoadParamArray = soundLoadParams[i].AsNativeArray();
                     for (int j = 0; j < poolDescriptor.ReserveCapacity; j++) {
-                        var soundLoadParam = soundLoadParamArray[j];
                         var handle = MiniAudioHandler.UnsafeLoadSound(
                             new IntPtr(fullPath.GetUnsafeReadOnlyPtr()),
                             (uint)fullPath.Length,
@@ -226,7 +225,7 @@ namespace MiniAudio.Entities.Systems {
                     ComponentType.ReadWrite<FreeHandle>(),
                     ComponentType.ReadWrite<OneShotAudioState>(),
                     ComponentType.ReadOnly<UsedHandle>(),
-                    ComponentType.ReadOnly<SoundLoadParametersElement>(),
+                    ComponentType.ReadOnly<AliasSoundLoadParameters>(),
                 },
                 None = new[] {
                     ComponentType.ReadWrite<AudioPoolID>()
@@ -241,7 +240,7 @@ namespace MiniAudio.Entities.Systems {
                     ComponentType.ReadWrite<AudioPoolDescriptor>(),
                     ComponentType.ReadOnly<FreeHandle>(),
                     ComponentType.ReadOnly<UsedHandle>(),
-                    ComponentType.ReadOnly<SoundLoadParametersElement>(),
+                    ComponentType.ReadOnly<AliasSoundLoadParameters>(),
                     ComponentType.ReadOnly<OneShotAudioState>()
                 }
             });
@@ -286,7 +285,7 @@ namespace MiniAudio.Entities.Systems {
 
             new InitializePooledAudioJob {
                 PathType = GetComponentTypeHandle<Path>(true),
-                SoundLoadParamsType = GetBufferTypeHandle<SoundLoadParametersElement>(true),
+                SoundLoadParamsType = GetComponentTypeHandle<AliasSoundLoadParameters>(true),
                 FreeHandleType = GetBufferTypeHandle<FreeHandle>(false),
                 PoolDescriptorType = GetComponentTypeHandle<AudioPoolDescriptor>(false),
                 OneShotAudioStateType = GetBufferTypeHandle<OneShotAudioState>(false),
