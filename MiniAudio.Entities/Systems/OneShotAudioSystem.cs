@@ -141,8 +141,8 @@ namespace MiniAudio.Entities.Systems {
             public void Execute(int index) {
                 var commandBuffer = AudioCommandBuffers[index];
                 for (int i = 0; i < commandBuffer.PlaybackIds->Length; i++) {
-                    var id = commandBuffer.PlaybackIds->ElementAt(i);
-                    if (EntityLookUp.TryGetValue(id, out Entity entity)) {
+                    var payload = commandBuffer.PlaybackIds->ElementAt(i);
+                    if (EntityLookUp.TryGetValue(payload.ID, out Entity entity)) {
                         var soundFreeHandles = FreeHandles[entity];
                         var soundInPlayHandles = UsedHandles[entity];
 
@@ -301,7 +301,6 @@ namespace MiniAudio.Entities.Systems {
             }.Run(oneShotAudioQuery);
 
             if (audioCommandBuffers.Length > 0) {
-
                 new PlaybackCommandBufferJob {
                     AudioCommandBuffers = audioCommandBuffers,
                     EntityLookUp = EntityLookUp,
@@ -314,6 +313,7 @@ namespace MiniAudio.Entities.Systems {
                     var audioCommandBuffer = audioCommandBuffers[i];
                     audioCommandBuffer.Dispose();
                 }
+                audioCommandBuffers.Clear();
             }
 
             if (!cleanUpEntityQuery.IsEmpty) {

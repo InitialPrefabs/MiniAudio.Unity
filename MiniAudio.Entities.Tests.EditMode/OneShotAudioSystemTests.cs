@@ -24,7 +24,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
             public FixedString512Bytes StringBytes;
 
             public void Execute(int index) {
-                CommandBuffer.Request(StringBytes);
+                CommandBuffer.Request(StringBytes, new SoundLoadParameters { });
             }
         }
 
@@ -85,7 +85,10 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 var loadParams = new SoundLoadParametersElement {
                     Volume = 1.0f
                 };
-                var handle = MiniAudioHandler.UnsafeLoadSound(new IntPtr(head), (uint)pathArray.Length * 2, new IntPtr(&loadParams));
+                var handle = MiniAudioHandler.UnsafeLoadSound(
+                    new IntPtr(head), 
+                    (uint)pathArray.Length, 
+                    new IntPtr(&loadParams));
                 Assert.AreNotEqual(uint.MaxValue, handle);
                 MiniAudioHandler.UnloadSound(handle);
                 tested = true;
@@ -151,6 +154,8 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             oneShotAudioSystem.Update();
 
+            bool tested = false;
+
             Entities.ForEach((
                 ref AudioPoolDescriptor desc,
                 DynamicBuffer<FreeHandle> freeHandles,
@@ -158,7 +163,10 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
                 Assert.AreEqual(freeHandles.Length + usedHandles.Length, desc.ReserveCapacity);
                 Assert.True(MiniAudioHandler.IsSoundPlaying(usedHandles[0].Value));
+                tested = true;
             });
+
+            Assert.True(tested);
         }
 
         void CreateAudioUninitializedAudioEntity() {
@@ -171,8 +179,6 @@ namespace MiniAudio.Entities.Tests.EditMode {
             for (int i = 0; i < path.Length; i++) {
                 charArray[i] = path[i];
             }
-
-            // pathBlob.IsPathStreamingAssets = true;
 
             m_Manager.AddComponentData(entity, new Path {
                 Value = builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent)

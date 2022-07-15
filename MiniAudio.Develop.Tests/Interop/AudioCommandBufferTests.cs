@@ -10,6 +10,10 @@ namespace MiniAudio.Interop.Tests {
         AudioCommandBuffer audioCommandBuffer;
         const string PathParam = "Test";
 
+        SoundLoadParameters soundParams = new SoundLoadParameters {
+            Volume = 1.0f
+        };
+
         [SetUp]
         public void SetUp() {
             Assert.True(audioCommandBuffer.PlaybackIds == null);
@@ -21,61 +25,61 @@ namespace MiniAudio.Interop.Tests {
 
         [Test]
         public void RecordsAndStores32() {
-            audioCommandBuffer.Request(new FixedString32Bytes(PathParam));
+            audioCommandBuffer.Request(new FixedString32Bytes(PathParam), soundParams);
             Assert.AreEqual(1, audioCommandBuffer.PlaybackIds->Length);
 
             fixed(char* ptr = PathParam) {
                 var actual = audioCommandBuffer.PlaybackIds->ElementAt(0);
                 var expected = math.hash(ptr, sizeof(char) * PathParam.Length);
-                Assert.AreEqual(expected, actual, "Mismatch hashes");
+                Assert.AreEqual(expected, actual.ID, "Mismatch hashes");
             }
         }
 
         [Test]
         public void RecordsAndStores64() {
-            audioCommandBuffer.Request(new FixedString64Bytes(PathParam));
+            audioCommandBuffer.Request(new FixedString64Bytes(PathParam), soundParams);
             Assert.AreEqual(1, audioCommandBuffer.PlaybackIds->Length);
 
             fixed(char* ptr = PathParam) {
                 var actual = audioCommandBuffer.PlaybackIds->ElementAt(0);
                 var expected = math.hash(ptr, sizeof(char) * PathParam.Length);
-                Assert.AreEqual(expected, actual, "Mismatch hashes");
+                Assert.AreEqual(expected, actual.ID, "Mismatch hashes");
             }
         }
 
         [Test]
         public void RecordsAndStores128() {
-            audioCommandBuffer.Request(new FixedString128Bytes(PathParam));
+            audioCommandBuffer.Request(new FixedString128Bytes(PathParam), soundParams);
             Assert.AreEqual(1, audioCommandBuffer.PlaybackIds->Length);
 
             fixed(char* ptr = PathParam) {
                 var actual = audioCommandBuffer.PlaybackIds->ElementAt(0);
                 var expected = math.hash(ptr, sizeof(char) * PathParam.Length);
-                Assert.AreEqual(expected, actual, "Mismatch hashes");
+                Assert.AreEqual(expected, actual.ID, "Mismatch hashes");
             }
         }
 
         [Test]
         public void RecordsAndStores512() {
-            audioCommandBuffer.Request(new FixedString512Bytes(PathParam));
+            audioCommandBuffer.Request(new FixedString512Bytes(PathParam), soundParams);
             Assert.AreEqual(1, audioCommandBuffer.PlaybackIds->Length);
 
             fixed(char* ptr = PathParam) {
                 var actual = audioCommandBuffer.PlaybackIds->ElementAt(0);
                 var expected = math.hash(ptr, sizeof(char) * PathParam.Length);
-                Assert.AreEqual(expected, actual, "Mismatch hashes");
+                Assert.AreEqual(expected, actual.ID, "Mismatch hashes");
             }
         }
 
         [Test]
         public void RecordsAndStores4096() {
-            audioCommandBuffer.Request(new FixedString4096Bytes(PathParam));
+            audioCommandBuffer.Request(new FixedString4096Bytes(PathParam), soundParams);
             Assert.AreEqual(1, audioCommandBuffer.PlaybackIds->Length);
 
             fixed(char* ptr = PathParam) {
                 var actual = audioCommandBuffer.PlaybackIds->ElementAt(0);
                 var expected = math.hash(ptr, sizeof(char) * PathParam.Length);
-                Assert.AreEqual(expected, actual, "Mismatch hashes");
+                Assert.AreEqual(expected, actual.ID, "Mismatch hashes");
             }
         }
 

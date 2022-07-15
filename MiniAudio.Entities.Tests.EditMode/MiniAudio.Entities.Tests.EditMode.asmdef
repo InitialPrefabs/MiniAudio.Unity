@@ -2,6 +2,7 @@
     "name": "MiniAudio.Entities.Tests.EditMode",
     "rootNamespace": "MiniAudio.Entities.Tests.EditMode",
     "references": [
+        "GUID:e664c91b29cf1cf49b1365492ac96f01",
         "GUID:578eebed78188fa41b67b2cca0f40b9e",
         "GUID:3abe75d519a389a4287af16cb3bde03d",
         "GUID:2665a8d13d1b3f18800f46e256720795",
