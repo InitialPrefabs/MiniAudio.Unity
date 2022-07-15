@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.CompilerServices;
-using MiniAudio.Interop;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
@@ -11,7 +10,7 @@ namespace MiniAudio.Entities.Systems {
 
         internal struct Payload {
             public uint ID;
-            public SoundLoadParameters Parameters;
+            public float Volume;
         }
 
         [NativeDisableUnsafePtrRestriction]
@@ -49,7 +48,7 @@ namespace MiniAudio.Entities.Systems {
         internal unsafe static void RequestInternal<T>(
             this ref AudioCommandBuffer buffer,
             T path,
-            SoundLoadParameters soundParams) where T : unmanaged, IUTF8Bytes, INativeList<byte> {
+            float volume) where T : unmanaged, IUTF8Bytes, INativeList<byte> {
 
             byte* head = path.GetUnsafePtr();
 
@@ -59,7 +58,7 @@ namespace MiniAudio.Entities.Systems {
             var id = math.hash(c, size);
             buffer.PlaybackIds->Add(new AudioCommandBuffer.Payload {
                 ID = id,
-                Parameters = soundParams
+                Volume = volume 
             });
         }
 
@@ -67,40 +66,40 @@ namespace MiniAudio.Entities.Systems {
         public static void Request(
             this ref AudioCommandBuffer buffer, 
             FixedString32Bytes path, 
-            SoundLoadParameters soundParams) {
-            buffer.RequestInternal(path, soundParams);
+            float volume) {
+            buffer.RequestInternal(path, volume);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
             this ref AudioCommandBuffer buffer, 
             FixedString64Bytes path,
-            SoundLoadParameters soundParams) {
-            buffer.RequestInternal(path, soundParams);
+            float volume) {
+            buffer.RequestInternal(path, volume);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
             this ref AudioCommandBuffer buffer, 
             FixedString128Bytes path,
-            SoundLoadParameters soundParams) {
-            buffer.RequestInternal(path, soundParams);
+            float volume) {
+            buffer.RequestInternal(path, volume);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
             this ref AudioCommandBuffer buffer, 
             FixedString512Bytes path,
-            SoundLoadParameters soundParams) {
-            buffer.RequestInternal(path, soundParams);
+            float volume) {
+            buffer.RequestInternal(path, volume);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
             this ref AudioCommandBuffer buffer, 
             FixedString4096Bytes path,
-            SoundLoadParameters soundParams) {
-            buffer.RequestInternal(path, soundParams);
+            float volume) {
+            buffer.RequestInternal(path, volume);
         }
     }
 }

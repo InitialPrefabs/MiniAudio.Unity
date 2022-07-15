@@ -152,6 +152,7 @@ namespace MiniAudio.Entities.Systems {
 
                             // Play the sound
                             MiniAudioHandler.PlaySound(freeHandle.Value);
+                            MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
                             soundFreeHandles.RemoveAt(soundFreeHandles.Length - 1);
 
                             soundInPlayHandles.Add(freeHandle);

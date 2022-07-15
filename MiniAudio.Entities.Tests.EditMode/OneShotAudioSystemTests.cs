@@ -24,7 +24,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
             public FixedString512Bytes StringBytes;
 
             public void Execute(int index) {
-                CommandBuffer.Request(StringBytes, new SoundLoadParameters { });
+                CommandBuffer.Request(StringBytes, 0);
             }
         }
 
