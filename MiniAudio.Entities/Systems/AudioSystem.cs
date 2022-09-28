@@ -195,7 +195,8 @@ namespace MiniAudio.Entities.Systems {
             for (int i = 0; i < streamingPath.Length; i++) {
                 fixedStreamingPath[i] = streamingPath[i];
             }
-            commandBufferSystem = World.GetOrCreateSystem<EndInitializationEntityCommandBufferSystem>();
+            
+            commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
         }
 
         protected override void OnDestroy() {
@@ -208,8 +209,9 @@ namespace MiniAudio.Entities.Systems {
             if (!MiniAudioHandler.IsEngineInitialized()) {
                 return;
             }
-
+            
             var commandBuffer = commandBufferSystem.CreateCommandBuffer();
+            
             new LoadSoundJob {
                 PathBlobType = GetComponentTypeHandle<Path>(true),
                 AudioClipType = GetComponentTypeHandle<AudioClip>(true),
@@ -234,6 +236,8 @@ namespace MiniAudio.Entities.Systems {
                 LastSystemVersion = LastSystemVersion,
                 EntityType = GetEntityTypeHandle()
             }.Run(soundQuery);
+            
+            commandBufferSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }

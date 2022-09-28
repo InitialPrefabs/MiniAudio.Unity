@@ -133,9 +133,9 @@ namespace MiniAudio.Entities.Systems {
             [ReadOnly]
             public NativeParallelHashMap<uint, Entity> EntityLookUp;
 
-            public BufferFromEntity<FreeHandle> FreeHandles;
+            public BufferLookup<FreeHandle> FreeHandles;
 
-            public BufferFromEntity<UsedHandle> UsedHandles;
+            public BufferLookup<UsedHandle> UsedHandles;
 
             public void Execute(int index) {
                 var commandBuffer = AudioCommandBuffers[index];
@@ -215,7 +215,7 @@ namespace MiniAudio.Entities.Systems {
         NativeArray<char> fixedStreamingPath;
         NativeList<AudioCommandBuffer> audioCommandBuffers;
 
-        EntityCommandBufferSystem commandBufferSystem;
+        // EntityCommandBufferSystem commandBufferSystem;
         JobHandle frameDependency;
 
         protected override void OnCreate() {
@@ -260,7 +260,7 @@ namespace MiniAudio.Entities.Systems {
 
             EntityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
             audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
-            commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
+            // commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
         }
 
         protected override void OnDestroy() {
@@ -281,6 +281,7 @@ namespace MiniAudio.Entities.Systems {
             frameDependency.Complete();
             frameDependency = default;
 
+            var commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
             var commandBuffer = commandBufferSystem.CreateCommandBuffer();
 
             new InitializePooledAudioJob {
@@ -302,10 +303,10 @@ namespace MiniAudio.Entities.Systems {
 
             if (audioCommandBuffers.Length > 0) {
                 new PlaybackCommandBufferJob {
-                    AudioCommandBuffers = audioCommandBuffers,
+                    AudioCommandBuffers = audioCommandBuffers.AsArray(),
                     EntityLookUp = EntityLookUp,
-                    FreeHandles = GetBufferFromEntity<FreeHandle>(false),
-                    UsedHandles = GetBufferFromEntity<UsedHandle>(false),
+                    FreeHandles = GetBufferLookup<FreeHandle>(false),
+                    UsedHandles = GetBufferLookup<UsedHandle>(false),
                 }.Run(audioCommandBuffers.Length);
 
                 // Perform the clean up
@@ -324,6 +325,8 @@ namespace MiniAudio.Entities.Systems {
 
                 commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
             }
+
+            commandBufferSystem.AddJobHandleForProducer(Dependency);
             commandBufferSystem.AddJobHandleForProducer(Dependency);
         }
 

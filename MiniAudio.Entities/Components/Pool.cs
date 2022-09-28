@@ -68,7 +68,7 @@ namespace MiniAudio.Entities {
         public bool IsLoaded;
     }
 
-    public struct AudioPoolID : ISystemStateComponentData {
+    public struct AudioPoolID : ICleanupComponentData {
         public uint Value;
     }
 }
