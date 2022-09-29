@@ -14,7 +14,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         [NativeDisableUnsafePtrRestriction]
-        unsafe internal UnsafeList<Payload>* PlaybackIds;
+        internal unsafe UnsafeList<Payload>* PlaybackIds;
         internal readonly Allocator Allocator;
 
         public AudioCommandBuffer(Allocator allocator) {
@@ -45,7 +45,7 @@ namespace MiniAudio.Entities.Systems {
     public static class AudioCommandBufferExtensions {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal unsafe static void RequestInternal<T>(
+        internal static unsafe void RequestInternal<T>(
             this ref AudioCommandBuffer buffer,
             T path,
             float volume) where T : unmanaged, IUTF8Bytes, INativeList<byte> {

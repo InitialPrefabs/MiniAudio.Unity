@@ -13,6 +13,7 @@ namespace MiniAudio.Entities.Systems {
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(AudioSystem))]
+    [RequireMatchingQueriesForUpdate]
     public partial class OneShotAudioSystem : SystemBase {
 
         [BurstCompile]
@@ -206,8 +207,7 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-        internal NativeParallelHashMap<uint, Entity> EntityLookUp;
-
+        NativeParallelHashMap<uint, Entity> entityLookUp;
         EntityQuery uninitializeAudioPoolQuery;
         EntityQuery cleanUpEntityQuery;
         EntityQuery oneShotAudioQuery;
@@ -258,7 +258,7 @@ namespace MiniAudio.Entities.Systems {
                 fixedStreamingPath[i] = streamingPath[i];
             }
 
-            EntityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
+            entityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
             audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
             // commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
         }
@@ -268,8 +268,8 @@ namespace MiniAudio.Entities.Systems {
                 fixedStreamingPath.Dispose();
             }
 
-            if (EntityLookUp.IsCreated) {
-                EntityLookUp.Dispose();
+            if (entityLookUp.IsCreated) {
+                entityLookUp.Dispose();
             }
 
             if (audioCommandBuffers.IsCreated) {
@@ -292,7 +292,7 @@ namespace MiniAudio.Entities.Systems {
                 OneShotAudioStateType = GetBufferTypeHandle<OneShotAudioState>(false),
                 EntityType = GetEntityTypeHandle(),
                 StreamingPath = fixedStreamingPath,
-                EntityLookUp = EntityLookUp,
+                EntityLookUp = entityLookUp,
                 CommandBuffer = commandBuffer
             }.Run(uninitializeAudioPoolQuery);
 
@@ -304,7 +304,7 @@ namespace MiniAudio.Entities.Systems {
             if (audioCommandBuffers.Length > 0) {
                 new PlaybackCommandBufferJob {
                     AudioCommandBuffers = audioCommandBuffers.AsArray(),
-                    EntityLookUp = EntityLookUp,
+                    EntityLookUp = entityLookUp,
                     FreeHandles = GetBufferLookup<FreeHandle>(false),
                     UsedHandles = GetBufferLookup<UsedHandle>(false),
                 }.Run(audioCommandBuffers.Length);
@@ -320,7 +320,7 @@ namespace MiniAudio.Entities.Systems {
             if (!cleanUpEntityQuery.IsEmpty) {
                 new RemoveTrackedPooledEntityJob {
                     AudioPoolDescriptorType = GetComponentTypeHandle<AudioPoolID>(true),
-                    EntityLookUp = EntityLookUp
+                    EntityLookUp = entityLookUp
                 }.Run(cleanUpEntityQuery);
 
                 commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
