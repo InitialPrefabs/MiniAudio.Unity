@@ -38,9 +38,9 @@ namespace MiniAudio.Entities.Tests.EditMode {
             base.Setup();
             DefaultMiniAudioInitializationProxy.Initialize();
             Assert.True(MiniAudioHandler.IsEngineInitialized());
-            entityCommandBufferSystem = World
-                .GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
-            oneShotAudioSystem = World.CreateSystem<OneShotAudioSystem>();
+
+            entityCommandBufferSystem = World.GetOrCreateSystemManaged<BeginInitializationEntityCommandBufferSystem>();
+            oneShotAudioSystem = World.CreateSystemManaged<OneShotAudioSystem>();
 
             initializedAudioQuery = EmptySystem.GetEntityQuery(new EntityQueryDesc {
                 All = new[] {
@@ -79,8 +79,8 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             bool tested = false;
 
-            Entities.ForEach((ref Path pathComp1) => {
-                ref var pathArray = ref pathComp.Value.Value.Path;
+            foreach (var entry in SystemAPI.Query<Path>().WithEntityAccess()) {
+                ref var pathArray = ref entry.Item1.Value.Value.Path;
                 void* head = pathArray.GetUnsafePtr();
                 var loadParams = new AliasSoundLoadParameters {
                     Volume = 1.0f
@@ -92,14 +92,14 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 Assert.AreNotEqual(uint.MaxValue, handle);
                 MiniAudioHandler.UnloadSound(handle);
                 tested = true;
-            });
+            }
             Assert.True(tested);
         }
 
         [Test]
         public void FileExists() {
             Assert.True(File.Exists(path));
-            fixed (char* ptr = path) {
+            fixed(char* ptr = path) {
                 var param = new AliasSoundLoadParameters();
                 var handle = MiniAudioHandler.UnsafeLoadSound(
                     new IntPtr(ptr),
@@ -122,23 +122,21 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             Assert.AreEqual(1, initializedAudioQuery.CalculateEntityCount());
 
-            Entities.ForEach((
-                DynamicBuffer<FreeHandle> freeHandles,
-                ref AudioPoolDescriptor desc,
-                ref AudioPoolID id,
-                ref Path pathComp) => {
+            foreach (var entry in SystemAPI
+                .Query<DynamicBuffer<FreeHandle>, AudioPoolDescriptor, AudioPoolID, Path>()
+                .WithEntityAccess()) {
+                var entity = entry.Item5;
+                Assert.True(entry.Item2.IsLoaded);
 
-                    Assert.True(desc.IsLoaded);
-                    fixed (char* ptr = path) {
-                        var expectedID = math.hash(ptr, sizeof(char) * path.Length);
-                        Assert.AreEqual(expectedID, id.Value);
-                    }
+                fixed(char* ptr = path) {
+                    var expectedID = math.hash(ptr, sizeof(char) * path.Length);
+                    Assert.AreEqual(expectedID, entry.Item3.Value);
+                }
 
-                    ref var pathArray = ref pathComp.Value.Value.Path;
-                    var builtPath = new string((char*)pathArray.GetUnsafePtr(), 0, pathArray.Length);
-
-                    Assert.AreEqual(10, freeHandles.Length, $"Failed to load {builtPath}");
-                });
+                ref var pathArray = ref entry.Item4.Value.Value.Path;
+                var builtPath = new string((char*)pathArray.GetUnsafePtr(), 0, pathArray.Length);
+                Assert.AreEqual(10, entry.Item1.Length, $"Failed to load {builtPath}");
+            }
         }
 
         [Test]
@@ -156,15 +154,17 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             bool tested = false;
 
-            Entities.ForEach((
-                ref AudioPoolDescriptor desc,
-                DynamicBuffer<FreeHandle> freeHandles,
-                DynamicBuffer<UsedHandle> usedHandles) => {
+            SystemAPI.QueryBuilder().WithAll<AudioPoolDescriptor>().Build();
 
-                    Assert.AreEqual(freeHandles.Length + usedHandles.Length, desc.ReserveCapacity);
-                    Assert.True(MiniAudioHandler.IsSoundPlaying(usedHandles[0].Value));
-                    tested = true;
-                });
+            // Entities.ForEach((
+            //     ref AudioPoolDescriptor desc,
+            //     DynamicBuffer<FreeHandle> freeHandles,
+            //     DynamicBuffer<UsedHandle> usedHandles) => {
+            //
+            //         Assert.AreEqual(freeHandles.Length + usedHandles.Length, desc.ReserveCapacity);
+            //         Assert.True(MiniAudioHandler.IsSoundPlaying(usedHandles[0].Value));
+            //         tested = true;
+            //     });
 
             Assert.True(tested);
         }

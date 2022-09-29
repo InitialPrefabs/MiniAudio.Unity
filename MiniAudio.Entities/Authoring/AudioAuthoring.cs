@@ -5,16 +5,11 @@ using UnityEngine;
 
 namespace MiniAudio.Entities.Authoring {
 
-    public abstract class BaseAudioAuthoring : MonoBehaviour, IConvertGameObjectToEntity {
+    public abstract class BaseAudioAuthoring : MonoBehaviour {
         public bool IsPathStreamingAssets;
         public string Path;
 
-        public abstract void Convert(
-            Entity entity,
-            EntityManager dstManager,
-            GameObjectConversionSystem conversionSystem);
-
-        protected BlobAssetReference<PathBlob> CreatePathBlob() {
+        public virtual BlobAssetReference<PathBlob> CreatePathBlob() {
             if (string.IsNullOrEmpty(Path)) {
                 throw new System.InvalidOperationException(
                     "Cannot convert an invalid path!");
@@ -38,25 +33,42 @@ namespace MiniAudio.Entities.Authoring {
 
         public SoundLoadParameters Parameters;
 
-        public override void Convert(
-            Entity entity,
-            EntityManager dstManager,
-            GameObjectConversionSystem conversionSystem) {
+        // public override void Convert(
+        //     Entity entity,
+        //     EntityManager dstManager,
+        //     GameObjectConversionSystem conversionSystem) {
+        //
+        //     var blobAsset = CreatePathBlob();
+        //     conversionSystem.BlobAssetStore.AddUniqueBlobAsset(ref blobAsset);
+        //     dstManager.AddComponentData(entity, new Path { Value = blobAsset });
+        //
+        //     var audioClip = AudioClip.New();
+        //     audioClip.Parameters = Parameters;
+        //     dstManager.AddComponentData(entity, audioClip);
+        //     dstManager.AddComponentData(entity, new AudioStateHistory {
+        //         Value = AudioState.Stopped
+        //     });
+        //
+        //     dstManager.AddComponentData(entity, new IsAudioLoaded {
+        //         Value = false,
+        //     });
+        // }
+    }
 
-            var blobAsset = CreatePathBlob();
-            conversionSystem.BlobAssetStore.AddUniqueBlobAsset(ref blobAsset);
-            dstManager.AddComponentData(entity, new Path { Value = blobAsset });
+    public class AudioAuthoringBaker : Baker<AudioAuthoring> {
 
+        public override void Bake(AudioAuthoring authoring) {
+            var entity = GetEntity(TransformUsageFlags.None);
+            var blobAsset = authoring.CreatePathBlob();
+            AddBlobAsset(ref blobAsset, out _);
+            AddComponent(new Path { Value = blobAsset });
+            
             var audioClip = AudioClip.New();
-            audioClip.Parameters = Parameters;
-            dstManager.AddComponentData(entity, audioClip);
-            dstManager.AddComponentData(entity, new AudioStateHistory {
-                Value = AudioState.Stopped
-            });
-
-            dstManager.AddComponentData(entity, new IsAudioLoaded {
-                Value = false,
-            });
+            audioClip.Parameters = authoring.Parameters;
+            
+            AddComponent(entity, audioClip);
+            AddComponent(entity, new AudioStateHistory { Value = AudioState.Stopped });
+            AddComponent(entity, new IsAudioLoaded { Value = false });
         }
     }
 }
