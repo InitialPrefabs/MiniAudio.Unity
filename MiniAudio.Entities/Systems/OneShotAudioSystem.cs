@@ -216,7 +216,7 @@ namespace MiniAudio.Entities.Systems {
         NativeArray<char> fixedStreamingPath;
         NativeList<AudioCommandBuffer> audioCommandBuffers;
 
-        // EntityCommandBufferSystem commandBufferSystem;
+        EntityCommandBufferSystem commandBufferSystem;
         JobHandle frameDependency;
 
         protected override void OnCreate() {
@@ -261,7 +261,7 @@ namespace MiniAudio.Entities.Systems {
 
             entityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
             audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
-            // commandBufferSystem = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
+            commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
         }
 
         protected override void OnDestroy() {
@@ -282,7 +282,6 @@ namespace MiniAudio.Entities.Systems {
             frameDependency.Complete();
             frameDependency = default;
 
-            var commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
             var commandBuffer = commandBufferSystem.CreateCommandBuffer();
 
             new InitializePooledAudioJob {
