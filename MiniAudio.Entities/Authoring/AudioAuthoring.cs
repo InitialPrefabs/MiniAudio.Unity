@@ -58,7 +58,7 @@ namespace MiniAudio.Entities.Authoring {
     public class AudioAuthoringBaker : Baker<AudioAuthoring> {
 
         public override void Bake(AudioAuthoring authoring) {
-            var entity = GetEntity(TransformUsageFlags.None);
+            var entity = GetEntity(TransformUsageFlags.ManualOverride);
             var blobAsset = authoring.CreatePathBlob();
             AddBlobAsset(ref blobAsset, out _);
             AddComponent(new Path { Value = blobAsset });

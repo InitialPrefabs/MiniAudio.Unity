@@ -2,6 +2,7 @@ using System;
 using MiniAudio.Common;
 using MiniAudio.Interop;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -17,7 +18,7 @@ namespace MiniAudio.Entities.Systems {
     public partial class OneShotAudioSystem : SystemBase {
 
         [BurstCompile]
-        unsafe struct InitializePooledAudioJob : IJobEntityBatch {
+        unsafe struct InitializePooledAudioJob : IJobChunk {
 
             [WriteOnly]
             public NativeParallelHashMap<uint, Entity> EntityLookUp;
@@ -45,19 +46,19 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
                 if (!fullPath.IsCreated) {
                     fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
                 }
 
-                var freeHandles = batchInChunk.GetBufferAccessor(FreeHandleType);
-                var soundLoadParams = batchInChunk.GetNativeArray(SoundLoadParamsType);
-                var poolDescriptors = batchInChunk.GetNativeArray(PoolDescriptorType);
-                var oneshotAudioStates = batchInChunk.GetBufferAccessor(OneShotAudioStateType);
-                var paths = batchInChunk.GetNativeArray(PathType);
-                var entities = batchInChunk.GetNativeArray(EntityType);
+                var freeHandles = chunk.GetBufferAccessor(FreeHandleType);
+                var soundLoadParams = chunk.GetNativeArray(SoundLoadParamsType);
+                var poolDescriptors = chunk.GetNativeArray(PoolDescriptorType);
+                var oneshotAudioStates = chunk.GetBufferAccessor(OneShotAudioStateType);
+                var paths = chunk.GetNativeArray(PathType);
+                var entities = chunk.GetNativeArray(EntityType);
 
-                for (int i = 0; i < batchInChunk.Count; i++) {
+                for (int i = 0; i < chunk.Count; i++) {
                     ref var poolDescriptor = ref poolDescriptors.ElementAt(i);
                     if (poolDescriptor.IsLoaded) {
                         continue;
@@ -108,7 +109,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         [BurstCompile]
-        struct RemoveTrackedPooledEntityJob : IJobEntityBatch {
+        struct RemoveTrackedPooledEntityJob : IJobChunk {
 
             [WriteOnly]
             public NativeParallelHashMap<uint, Entity> EntityLookUp;
@@ -116,9 +117,9 @@ namespace MiniAudio.Entities.Systems {
             [ReadOnly]
             public ComponentTypeHandle<AudioPoolID> AudioPoolDescriptorType;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
-                var audioPoolDescriptors = batchInChunk.GetNativeArray(AudioPoolDescriptorType);
-                for (int i = 0; i < batchInChunk.Count; i++) {
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
+                var audioPoolDescriptors = chunk.GetNativeArray(AudioPoolDescriptorType);
+                for (int i = 0; i < chunk.Count; i++) {
                     EntityLookUp.Remove(audioPoolDescriptors[i].Value);
                 }
             }
@@ -163,7 +164,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         [BurstCompile]
-        struct ManageOneShotAudioJob : IJobEntityBatch {
+        struct ManageOneShotAudioJob : IJobChunk {
 
             public BufferTypeHandle<UsedHandle> UsedHandleType;
 
@@ -172,14 +173,14 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<int> cleanUp;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
                 if (!cleanUp.IsCreated) {
                     cleanUp = new NativeList<int>(10, Allocator.Temp);
                 }
 
-                var usedHandlesAccessor = batchInChunk.GetBufferAccessor(UsedHandleType);
-                var freeHandlesAccessor = batchInChunk.GetBufferAccessor(FreeHandleType);
-                for (int i = 0; i < batchInChunk.Count; i++) {
+                var usedHandlesAccessor = chunk.GetBufferAccessor(UsedHandleType);
+                var freeHandlesAccessor = chunk.GetBufferAccessor(FreeHandleType);
+                for (int i = 0; i < chunk.Count; i++) {
                     var usedHandles = usedHandlesAccessor[i];
                     var freeHandles = freeHandlesAccessor[i];
 
@@ -341,4 +342,3 @@ namespace MiniAudio.Entities.Systems {
         }
     }
 }
-

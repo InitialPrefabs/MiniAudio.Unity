@@ -2,6 +2,7 @@ using MiniAudio.Common;
 using MiniAudio.Interop;
 using System;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -35,19 +36,19 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
+            public void Execute(ArchetypeChunk chunk, int batchIndex) {
                 if (!fullPath.IsCreated) {
                     fullPath = new NativeList<char>(
                         StreamingPath.Length, 
                         Allocator.Temp);
                 }
 
-                var loadPaths = batchInChunk.GetNativeArray(PathBlobType);
-                var audioClips = batchInChunk.GetNativeArray(AudioClipType);
-                var entities = batchInChunk.GetNativeArray(EntityType);
-                var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
+                var loadPaths = chunk.GetNativeArray(PathBlobType);
+                var audioClips = chunk.GetNativeArray(AudioClipType);
+                var entities = chunk.GetNativeArray(EntityType);
+                var audioMetadata = chunk.GetNativeArray(MetadataType);
 
-                for (int i = 0; i < batchInChunk.Count; i++) {
+                for (int i = 0; i < chunk.Count; i++) {
                     ref var isLoaded = ref audioMetadata.ElementAt(i);
 
                     if (isLoaded.Value) {
@@ -84,7 +85,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         [BurstCompile]
-        struct StopSoundJob : IJobEntityBatch {
+        struct StopSoundJob : IJobChunk {
 
             [ReadOnly]
             public ComponentTypeHandle<AudioStateHistory> AudioStateHistoryType;
@@ -97,12 +98,12 @@ namespace MiniAudio.Entities.Systems {
 
             public EntityCommandBuffer CommandBuffer;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
-                var audioClips = batchInChunk.GetNativeArray(AudioClipType);
-                var stateTypes = batchInChunk.GetNativeArray(AudioStateHistoryType);
-                var entities = batchInChunk.GetNativeArray(EntityType);
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
+                var audioClips = chunk.GetNativeArray(AudioClipType);
+                var stateTypes = chunk.GetNativeArray(AudioStateHistoryType);
+                var entities = chunk.GetNativeArray(EntityType);
 
-                for (int i = 0; i < batchInChunk.Count; i++) {
+                for (int i = 0; i < chunk.Count; i++) {
                     var audioClip = audioClips[i];
                     var lastState = stateTypes[i].Value;
                     var entity = entities[i];
@@ -122,7 +123,7 @@ namespace MiniAudio.Entities.Systems {
 
         [BurstCompile]
         [WithChangeFilter(typeof(AudioClip))]
-        struct ManageAudioStateJob : IJobEntityBatch {
+        struct ManageAudioStateJob : IJobChunk {
 
             [ReadOnly]
             public ComponentTypeHandle<AudioStateHistory> AudioStateHistoryType;
@@ -140,16 +141,16 @@ namespace MiniAudio.Entities.Systems {
 
             public EntityCommandBuffer CommandBuffer;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex) {
-                if (!batchInChunk.DidChange(AudioClipType, LastSystemVersion)) {
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
+                if (!chunk.DidChange(AudioClipType, LastSystemVersion)) {
                     return;
                 }
-                var audioClips = batchInChunk.GetNativeArray(AudioClipType);
-                var stateTypes = batchInChunk.GetNativeArray(AudioStateHistoryType);
-                var entities = batchInChunk.GetNativeArray(EntityType);
-                var audioMetadata = batchInChunk.GetNativeArray(MetadataType);
+                var audioClips = chunk.GetNativeArray(AudioClipType);
+                var stateTypes = chunk.GetNativeArray(AudioStateHistoryType);
+                var entities = chunk.GetNativeArray(EntityType);
+                var audioMetadata = chunk.GetNativeArray(MetadataType);
 
-                for (int i = 0; i < batchInChunk.Count; i++) {
+                for (int i = 0; i < chunk.Count; i++) {
                     var audioClip = audioClips[i];
                     var lastState = stateTypes[i].Value;
                     var metadata = audioMetadata[i];
