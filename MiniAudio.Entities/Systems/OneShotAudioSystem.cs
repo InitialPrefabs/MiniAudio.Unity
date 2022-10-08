@@ -14,7 +14,6 @@ namespace MiniAudio.Entities.Systems {
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(AudioSystem))]
-    [RequireMatchingQueriesForUpdate]
     public partial class OneShotAudioSystem : SystemBase {
 
         [BurstCompile]

@@ -11,11 +11,10 @@ using UnityEngine;
 namespace MiniAudio.Entities.Systems {
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
-    [RequireMatchingQueriesForUpdate]
     public partial class AudioSystem : SystemBase {
 
         [BurstCompile]
-        unsafe struct LoadSoundJob : IJobEntityBatch {
+        unsafe struct LoadSoundJob : IJobChunk {
 
             [ReadOnly]
             public NativeArray<char> StreamingPath;
@@ -36,7 +35,7 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
-            public void Execute(ArchetypeChunk chunk, int batchIndex) {
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
                 if (!fullPath.IsCreated) {
                     fullPath = new NativeList<char>(
                         StreamingPath.Length, 
