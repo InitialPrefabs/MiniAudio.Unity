@@ -2,7 +2,8 @@
     "name": "MiniAudio.Interop",
     "rootNamespace": "MiniAudio.Interop",
     "references": [
-        "GUID:e664c91b29cf1cf49b1365492ac96f01"
+        "GUID:e664c91b29cf1cf49b1365492ac96f01",
+        "GUID:2665a8d13d1b3f18800f46e256720795"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

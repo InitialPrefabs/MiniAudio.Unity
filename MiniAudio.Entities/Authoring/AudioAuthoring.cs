@@ -32,27 +32,6 @@ namespace MiniAudio.Entities.Authoring {
     public class AudioAuthoring : BaseAudioAuthoring {
 
         public SoundLoadParameters Parameters;
-
-        // public override void Convert(
-        //     Entity entity,
-        //     EntityManager dstManager,
-        //     GameObjectConversionSystem conversionSystem) {
-        //
-        //     var blobAsset = CreatePathBlob();
-        //     conversionSystem.BlobAssetStore.AddUniqueBlobAsset(ref blobAsset);
-        //     dstManager.AddComponentData(entity, new Path { Value = blobAsset });
-        //
-        //     var audioClip = AudioClip.New();
-        //     audioClip.Parameters = Parameters;
-        //     dstManager.AddComponentData(entity, audioClip);
-        //     dstManager.AddComponentData(entity, new AudioStateHistory {
-        //         Value = AudioState.Stopped
-        //     });
-        //
-        //     dstManager.AddComponentData(entity, new IsAudioLoaded {
-        //         Value = false,
-        //     });
-        // }
     }
 
     public class AudioAuthoringBaker : Baker<AudioAuthoring> {

@@ -15,19 +15,21 @@ namespace MiniAudio {
 #endif
             };
             go.AddComponent<DefaultMiniAudioInitializationProxy>();
-            Object.DontDestroyOnLoad(go);
+            DontDestroyOnLoad(go);
         }
 
         internal static void Initialize() {
             ConstantImports.Initialize();
             MiniAudioHandler.InitializeLibrary();
             MiniAudioHandler.InitializeEngine();
+            StreamingAssetsHelper.Initialize();
         }
 
         internal static void Release() {
             MiniAudioHandler.ReleaseEngine();
             MiniAudioHandler.ReleaseLibrary();
             ConstantImports.Release();
+            StreamingAssetsHelper.Release();
         }
 
         void Start() {
