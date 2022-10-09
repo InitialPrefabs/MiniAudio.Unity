@@ -6,7 +6,6 @@ using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using UnityEngine;
 
 namespace MiniAudio.Entities.Systems {
 
@@ -17,9 +16,6 @@ namespace MiniAudio.Entities.Systems {
 
         [BurstCompile]
         unsafe struct LoadSoundJob : IJobChunk {
-
-            [ReadOnly]
-            public NativeArray<char> StreamingPath;
 
             [ReadOnly]
             public ComponentTypeHandle<Path> PathBlobType;
@@ -45,7 +41,7 @@ namespace MiniAudio.Entities.Systems {
 
                 if (!fullPath.IsCreated) {
                     fullPath = new NativeList<char>(
-                        StreamingPath.Length, 
+                        StreamingAssetsHelper.Path.Data.Length,
                         Allocator.Temp);
                 }
 
@@ -67,8 +63,8 @@ namespace MiniAudio.Entities.Systems {
 
                     if (loadPath.IsStreamingAssets) {
                         fullPath.AddRangeNoResize(
-                            StreamingPath.GetUnsafeReadOnlyPtr(),
-                            StreamingPath.Length);
+                            StreamingAssetsHelper.Path.Data.Ptr,
+                            StreamingAssetsHelper.Path.Data.Length);
                     }
 
                     ref var path = ref loadPath.Value.Value.Path;
@@ -196,64 +192,55 @@ namespace MiniAudio.Entities.Systems {
         }
 
         EntityQuery soundQuery;
-        NativeArray<char> fixedStreamingPath;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state) {
             soundQuery = SystemAPI.QueryBuilder()
                 .WithAll<AudioClip>()
                 .WithAll<AudioStateHistory>()
                 .WithAll<IsAudioLoaded>()
                 .Build();
-
-            var streamingPath = Application.streamingAssetsPath;
-            fixedStreamingPath = new NativeArray<char>(streamingPath.Length, Allocator.Persistent);
-
-            for (int i = 0; i < streamingPath.Length; i++) {
-                fixedStreamingPath[i] = streamingPath[i];
-            }
-            
-            // commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
         }
 
-        public void OnDestroy(ref SystemState state) {
-            if (fixedStreamingPath.IsCreated) {
-                fixedStreamingPath.Dispose();
-            }
-        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) { }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state) {
             if (!MiniAudioHandler.IsEngineInitialized()) {
                 return;
             }
-            
-            // var commandBuffer = commandBufferSystem.CreateCommandBuffer();
-            
-            // new LoadSoundJob {
-            //     PathBlobType = GetComponentTypeHandle<Path>(true),
-            //     AudioClipType = GetComponentTypeHandle<AudioClip>(true),
-            //     MetadataType = GetComponentTypeHandle<IsAudioLoaded>(false),
-            //     EntityType = GetEntityTypeHandle(),
-            //     CommandBuffer = commandBuffer,
-            //     StreamingPath = fixedStreamingPath
-            // }.Run(soundQuery);
 
-            // new StopSoundJob {
-            //     AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
-            //     AudioClipType = GetComponentTypeHandle<AudioClip>(true),
-            //     CommandBuffer = commandBuffer,
-            //     EntityType = GetEntityTypeHandle()
-            // }.Run(soundQuery);
+            var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
+            var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
 
-            // new ManageAudioStateJob() {
-            //     AudioStateHistoryType = GetComponentTypeHandle<AudioStateHistory>(true),
-            //     AudioClipType = GetComponentTypeHandle<AudioClip>(true),
-            //     MetadataType = GetComponentTypeHandle<IsAudioLoaded>(true),
-            //     CommandBuffer = commandBuffer,
-            //     LastSystemVersion = LastSystemVersion,
-            //     EntityType = GetEntityTypeHandle()
-            // }.Run(soundQuery);
+            var audioClipType = state.GetComponentTypeHandle<AudioClip>(true);
+            var audioStateHistoryType = state.GetComponentTypeHandle<AudioStateHistory>(true);
+            var entityType = state.GetEntityTypeHandle();
+
+            new LoadSoundJob {
+                PathBlobType = state.GetComponentTypeHandle<Path>(true),
+                AudioClipType = audioClipType,
+                MetadataType = state.GetComponentTypeHandle<IsAudioLoaded>(false),
+                EntityType = entityType,
+                CommandBuffer = commandBuffer,
+            }.Run(soundQuery);
             
-            // commandBufferSystem.AddJobHandleForProducer(Dependency);
+            new StopSoundJob {
+                CommandBuffer = commandBuffer,
+                AudioStateHistoryType = audioStateHistoryType,
+                AudioClipType = audioClipType,
+                EntityType = entityType,
+            }.Run(soundQuery);
+            
+            new ManageAudioStateJob {
+                AudioStateHistoryType = audioStateHistoryType,
+                AudioClipType = audioClipType,
+                MetadataType = state.GetComponentTypeHandle<IsAudioLoaded>(true),
+                LastSystemVersion = state.LastSystemVersion,
+                EntityType = entityType,
+                CommandBuffer = commandBuffer
+            }.Run(soundQuery);
         }
     }
 }
