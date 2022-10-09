@@ -4,6 +4,7 @@
     "references": [
         "MiniAudio.Common",
         "MiniAudio.Interop",
+        "Unity.Burst",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

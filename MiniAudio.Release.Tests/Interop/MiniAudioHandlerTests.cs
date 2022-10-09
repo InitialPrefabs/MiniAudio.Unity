@@ -10,10 +10,29 @@ namespace MiniAudio.Interop.Tests {
 
         string audioPath;
 
-        [SetUp]
-        public void SetUp() {
+        [UnitySetUp]
+        public IEnumerator SetUp() {
             audioPath = Path.Combine(Application.streamingAssetsPath, "Audio", "Stronghold.mp3");
             Assert.IsTrue(File.Exists(audioPath));
+
+            var initializedProxy = Object.FindObjectOfType<DefaultMiniAudioInitializationProxy>();
+            if (initializedProxy != null) {
+                Object.Destroy(initializedProxy.gameObject);
+                yield return null;
+            }
+
+            yield return null;
+            DefaultMiniAudioInitializationProxy.Setup();
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown() {
+            var initializedProxy = Object.FindObjectOfType<DefaultMiniAudioInitializationProxy>();
+            Assert.IsNotNull(initializedProxy);
+            Object.Destroy(initializedProxy);
+
+            yield return null;
+            Assert.False(StreamingAssetsHelper.Path.Data.IsCreated);
         }
 
         [UnityTest]
@@ -21,8 +40,7 @@ namespace MiniAudio.Interop.Tests {
             yield return new WaitForSeconds(1);
             uint handle = uint.MaxValue;
             Assert.DoesNotThrow(() => {
-                Assert.True(MiniAudioHandler.IsEngineInitialized());
-                Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));
+                CommonSetUpAsserts();
 
                 handle = MiniAudioHandler.LoadSound(audioPath, new SoundLoadParameters {
                     Volume = 1.0f,
@@ -51,8 +69,7 @@ namespace MiniAudio.Interop.Tests {
             yield return new WaitForSeconds(1);
             uint handle = uint.MaxValue;
             Assert.DoesNotThrow(() => {
-                Assert.True(MiniAudioHandler.IsEngineInitialized());
-                Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));
+                CommonSetUpAsserts();
 
                 handle = MiniAudioHandler.LoadSound(string.Empty, new SoundLoadParameters {
                     Volume = 1.0f,
@@ -73,6 +90,12 @@ namespace MiniAudio.Interop.Tests {
 
             yield return new WaitForSeconds(0.5f);
             Assert.False(MiniAudioHandler.IsSoundPlaying(handle));
+        }
+
+        void CommonSetUpAsserts() {
+            Assert.True(MiniAudioHandler.IsEngineInitialized());
+            Assert.False(MiniAudioHandler.IsSoundFinished(uint.MaxValue));
+            Assert.True(StreamingAssetsHelper.Path.Data.IsCreated);
         }
     }
 }

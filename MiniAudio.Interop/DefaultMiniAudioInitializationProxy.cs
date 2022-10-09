@@ -8,7 +8,7 @@ namespace MiniAudio {
     internal class DefaultMiniAudioInitializationProxy : MonoBehaviour {
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        static void Setup() {
+        internal static void Setup() {
             var go = new GameObject("MiniAudio Proxy") {
 #if !UNITY_EDITOR
                 hideFlags = HideFlags.HideInHierarchy
