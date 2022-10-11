@@ -1,3 +1,5 @@
+// ReSharper disable MemberCanBePrivate.Global
+
 using System;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
@@ -65,6 +67,20 @@ namespace MiniAudio.Entities.Systems {
                 ID = hash128,
                 Volume = volume
             });
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Request(
+            this ref AudioCommandBuffer buffer,
+            in Hash128 hash128,
+            float volume) {
+
+            unsafe {
+                buffer.PlaybackIds->Add(new AudioCommandBuffer.Payload {
+                    ID = hash128,
+                    Volume = volume
+                });
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

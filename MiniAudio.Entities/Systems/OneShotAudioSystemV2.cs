@@ -33,10 +33,9 @@ namespace MiniAudio.Entities.Systems {
     [RequireMatchingQueriesForUpdate]
     public unsafe partial struct OneShotAudioSystemV2 : ISystem {
 
-        public struct Singleton : ICleanupComponentData {
+        public struct Singleton : IComponentData {
             internal UnsafeList<AudioCommandBuffer>* PendingBuffers;
             internal JobHandle* DependencyHandle;
-
         }
 
         [BurstCompile]
@@ -64,7 +63,7 @@ namespace MiniAudio.Entities.Systems {
                             var last = freeHandles.Length - 1;
                             var freeHandle = freeHandles[last];
                             MiniAudioHandler.PlaySound(freeHandle.Value);
-                            MiniAudioHandler.SetSoundVolumeHandler(freeHandle.Value, payload.Volume);
+                            MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
 
                             freeHandles.RemoveAt(last);
                             usedHandles.Add(freeHandle);
@@ -99,7 +98,7 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> absolutePath;
 
-            public unsafe void Execute(
+            public void Execute(
                 in ArchetypeChunk chunk,
                 int unfilteredChunkIndex,
                 bool useEnabledMask,
