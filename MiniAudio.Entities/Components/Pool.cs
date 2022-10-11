@@ -1,16 +1,23 @@
 using MiniAudio.Interop;
+using System;
 using Unity.Entities;
 
 namespace MiniAudio.Entities {
-
+    
+    [InternalBufferCapacity(32)]
     public struct FreeHandle : IBufferElementData {
         public uint Value;
 
         public static implicit operator UsedHandle(FreeHandle handle) {
             return new UsedHandle { Value = handle.Value };
         }
+
+        public static implicit operator FreeHandle(uint value) {
+            return new FreeHandle { Value = value };
+        }
     }
 
+    [InternalBufferCapacity(32)]
     public struct UsedHandle : IBufferElementData {
         public uint Value;
 
@@ -19,6 +26,7 @@ namespace MiniAudio.Entities {
         }
     }
 
+    [InternalBufferCapacity(32)]
     public struct OneShotAudioState : IBufferElementData {
         public AudioState Value;
 
@@ -65,9 +73,9 @@ namespace MiniAudio.Entities {
 
     public struct AudioPoolDescriptor : IComponentData {
         public ushort ReserveCapacity;
-        public bool IsLoaded;
     }
 
+    [Obsolete]
     public struct AudioPoolID : ICleanupComponentData {
         public uint Value;
     }

@@ -14,6 +14,8 @@ namespace MiniAudio.Entities.Systems {
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(AudioSystem))]
+    [Obsolete]
+    [DisableAutoCreation]
     public partial class OneShotAudioSystem : SystemBase {
 
         [BurstCompile]
@@ -45,7 +47,12 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<char> fullPath;
 
-            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
+            public void Execute(
+                in ArchetypeChunk chunk, 
+                int unfilteredChunkIndex, 
+                bool useEnabledMask, 
+                in v128 chunkEnabledMask) {
+                
                 if (!fullPath.IsCreated) {
                     fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
                 }
@@ -53,19 +60,19 @@ namespace MiniAudio.Entities.Systems {
                 var freeHandles = chunk.GetBufferAccessor(FreeHandleType);
                 var soundLoadParams = chunk.GetNativeArray(SoundLoadParamsType);
                 var poolDescriptors = chunk.GetNativeArray(PoolDescriptorType);
-                var oneshotAudioStates = chunk.GetBufferAccessor(OneShotAudioStateType);
+                var oneShotAudioStates = chunk.GetBufferAccessor(OneShotAudioStateType);
                 var paths = chunk.GetNativeArray(PathType);
                 var entities = chunk.GetNativeArray(EntityType);
 
                 for (int i = 0; i < chunk.Count; i++) {
                     ref var poolDescriptor = ref poolDescriptors.ElementAt(i);
-                    if (poolDescriptor.IsLoaded) {
-                        continue;
-                    }
+                    // if (poolDescriptor.IsLoaded) {
+                    //     continue;
+                    // }
 
                     var loadPath = paths[i];
                     var freeHandleBuffer = freeHandles[i];
-                    var oneShotAudioStateBuffer = oneshotAudioStates[i];
+                    var oneShotAudioStateBuffer = oneShotAudioStates[i];
                     var entity = entities[i];
 
                     oneShotAudioStateBuffer.Clear();
@@ -101,12 +108,13 @@ namespace MiniAudio.Entities.Systems {
                         }
                     }
 
-                    poolDescriptor.IsLoaded = true;
+                    // poolDescriptor.IsLoaded = true;
                     fullPath.Clear();
                 }
             }
         }
-
+        
+        [Obsolete]
         [BurstCompile]
         struct RemoveTrackedPooledEntityJob : IJobChunk {
 
@@ -142,22 +150,22 @@ namespace MiniAudio.Entities.Systems {
                 var commandBuffer = AudioCommandBuffers[index];
                 for (int i = 0; i < commandBuffer.PlaybackIds->Length; i++) {
                     var payload = commandBuffer.PlaybackIds->ElementAt(i);
-                    if (EntityLookUp.TryGetValue(payload.ID, out Entity entity)) {
-                        var soundFreeHandles = FreeHandles[entity];
-                        var soundInPlayHandles = UsedHandles[entity];
-
-                        if (soundFreeHandles.Length > 0) {
-                            var last = soundFreeHandles.Length - 1;
-                            var freeHandle = soundFreeHandles[last];
-
-                            // Play the sound
-                            MiniAudioHandler.PlaySound(freeHandle.Value);
-                            MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
-                            soundFreeHandles.RemoveAt(soundFreeHandles.Length - 1);
-
-                            soundInPlayHandles.Add(freeHandle);
-                        } // TODO: Load a sound
-                    }
+                    // if (EntityLookUp.TryGetValue(payload.ID, out Entity entity)) {
+                    //     var soundFreeHandles = FreeHandles[entity];
+                    //     var soundInPlayHandles = UsedHandles[entity];
+                    //
+                    //     if (soundFreeHandles.Length > 0) {
+                    //         var last = soundFreeHandles.Length - 1;
+                    //         var freeHandle = soundFreeHandles[last];
+                    //
+                    //         // Play the sound
+                    //         MiniAudioHandler.PlaySound(freeHandle.Value);
+                    //         MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
+                    //         soundFreeHandles.RemoveAt(soundFreeHandles.Length - 1);
+                    //
+                    //         soundInPlayHandles.Add(freeHandle);
+                    //     } // TODO: Load a sound
+                    // }
                 }
             }
         }
@@ -172,7 +180,12 @@ namespace MiniAudio.Entities.Systems {
             [NativeDisableContainerSafetyRestriction]
             NativeList<int> cleanUp;
 
-            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
+            public void Execute(
+                in ArchetypeChunk chunk, 
+                int unfilteredChunkIndex, 
+                bool useEnabledMask, 
+                in v128 chunkEnabledMask) {
+                
                 if (!cleanUp.IsCreated) {
                     cleanUp = new NativeList<int>(10, Allocator.Temp);
                 }

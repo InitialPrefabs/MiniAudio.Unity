@@ -3,13 +3,15 @@ using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
+using Hash128 = Unity.Entities.Hash128;
 
 namespace MiniAudio.Entities.Systems {
 
     public struct AudioCommandBuffer : IDisposable {
 
         internal struct Payload {
-            public uint ID;
+            public Hash128 ID;
             public float Volume;
         }
 
@@ -51,28 +53,33 @@ namespace MiniAudio.Entities.Systems {
             float volume) where T : unmanaged, IUTF8Bytes, INativeList<byte> {
 
             byte* head = path.GetUnsafePtr();
-
-            var size = path.Length * 2;
-            char* c = stackalloc char[size];
-            Unicode.Utf8ToUtf16(head, path.Length, c, out int utf16Length, size);
-            var id = math.hash(c, size);
+            var c = new NativeArray<char>(path.Length, Allocator.Temp);
+            Unicode.Utf8ToUtf16(
+                head, 
+                path.Length, 
+                (char*)c.GetUnsafePtr(), 
+                out _, 
+                path.Length);
+            
+            Hash128 hash128 = UnityEngine.Hash128.Compute(c);
+            
             buffer.PlaybackIds->Add(new AudioCommandBuffer.Payload {
-                ID = id,
-                Volume = volume 
+                ID = hash128,
+                Volume = volume
             });
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
-            this ref AudioCommandBuffer buffer, 
-            FixedString32Bytes path, 
+            this ref AudioCommandBuffer buffer,
+            FixedString32Bytes path,
             float volume) {
             buffer.RequestInternal(path, volume);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
-            this ref AudioCommandBuffer buffer, 
+            this ref AudioCommandBuffer buffer,
             FixedString64Bytes path,
             float volume) {
             buffer.RequestInternal(path, volume);
@@ -80,7 +87,7 @@ namespace MiniAudio.Entities.Systems {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
-            this ref AudioCommandBuffer buffer, 
+            this ref AudioCommandBuffer buffer,
             FixedString128Bytes path,
             float volume) {
             buffer.RequestInternal(path, volume);
@@ -88,7 +95,7 @@ namespace MiniAudio.Entities.Systems {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
-            this ref AudioCommandBuffer buffer, 
+            this ref AudioCommandBuffer buffer,
             FixedString512Bytes path,
             float volume) {
             buffer.RequestInternal(path, volume);
@@ -96,7 +103,7 @@ namespace MiniAudio.Entities.Systems {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Request(
-            this ref AudioCommandBuffer buffer, 
+            this ref AudioCommandBuffer buffer,
             FixedString4096Bytes path,
             float volume) {
             buffer.RequestInternal(path, volume);

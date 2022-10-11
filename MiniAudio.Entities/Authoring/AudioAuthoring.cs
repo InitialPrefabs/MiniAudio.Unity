@@ -6,6 +6,7 @@ using UnityEngine;
 namespace MiniAudio.Entities.Authoring {
 
     public abstract class BaseAudioAuthoring : MonoBehaviour {
+        
         public bool IsPathStreamingAssets;
         public string Path;
 
@@ -16,8 +17,9 @@ namespace MiniAudio.Entities.Authoring {
             }
 
             var path = IsPathStreamingAssets ? $"/{Path}" : Path;
-            var builder = new BlobBuilder(Allocator.Temp);
+            using var builder = new BlobBuilder(Allocator.Temp);
             ref var pathBlob = ref builder.ConstructRoot<PathBlob>();
+            
             var charArray = builder.Allocate(ref pathBlob.Path, path.Length);
 
             for (int i = 0; i < path.Length; i++) {
@@ -25,12 +27,12 @@ namespace MiniAudio.Entities.Authoring {
             }
 
             pathBlob.IsPathStreamingAssets = IsPathStreamingAssets;
+            pathBlob.ID = UnityEngine.Hash128.Compute(Path);
             return builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent);
         }
     }
 
     public class AudioAuthoring : BaseAudioAuthoring {
-
         public SoundLoadParameters Parameters;
     }
 
@@ -47,7 +49,6 @@ namespace MiniAudio.Entities.Authoring {
             
             AddComponent(entity, audioClip);
             AddComponent(entity, new AudioStateHistory { Value = AudioState.Stopped });
-            AddComponent(entity, new IsAudioLoaded { Value = false });
         }
     }
 }

@@ -23,6 +23,10 @@ namespace MiniAudio {
                     Allocator.Persistent);
                 UnsafeUtility.MemCpy(Ptr, ptr, UnsafeUtility.SizeOf<char>() * Length);
             }
+            
+#if UNITY_EDITOR
+            Debug.Log($"Initializing CharPointer with: {content}");
+#endif
         }
 
         public char this[int index] {

@@ -18,6 +18,7 @@ namespace MiniAudio.Entities {
     /// </summary>
     public struct PathBlob {
         public bool IsPathStreamingAssets;
+        public Hash128 ID;
         public BlobArray<char> Path;
     }
 
@@ -25,6 +26,7 @@ namespace MiniAudio.Entities {
     /// The Entity component version of the PathBlob.
     /// </summary>
     public struct Path : IComponentData {
+        
         public bool IsStreamingAssets => Value.Value.IsPathStreamingAssets;
         public BlobAssetReference<PathBlob> Value;
     }
@@ -33,9 +35,9 @@ namespace MiniAudio.Entities {
     /// A stand in to describe the audio clip. When DOTS 1.0 rolls out with 
     /// Enable/Disable components, this will be moved into the AudioClip.
     /// </summary>
-    public struct IsAudioLoaded : IComponentData {
-        public bool Value;
-    }
+    // public struct IsAudioLoaded : IComponentData {
+    //     public bool Value;
+    // }
 
     public struct AudioClip : IComponentData {
 
@@ -71,4 +73,6 @@ namespace MiniAudio.Entities {
     internal struct AudioStateHistory : IComponentData {
         public AudioState Value;
     }
+    
+    internal struct InitializedAudioTag : ICleanupComponentData { }
 }
