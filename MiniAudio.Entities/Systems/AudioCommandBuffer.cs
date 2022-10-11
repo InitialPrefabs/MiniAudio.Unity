@@ -2,8 +2,6 @@ using System;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Mathematics;
-using UnityEngine;
 using Hash128 = Unity.Entities.Hash128;
 
 namespace MiniAudio.Entities.Systems {

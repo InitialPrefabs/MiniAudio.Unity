@@ -38,6 +38,15 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
         protected override void OnUpdate() { }
 
+        public unsafe void SingletonCommandBufferExists() {
+            var query = SystemAPI.QueryBuilder().WithAll<OneShotAudioSystemV2.Singleton>().Build();
+            Assert.AreEqual(1, query.CalculateEntityCount());
+            foreach (var singleton in SystemAPI.Query<OneShotAudioSystemV2.Singleton>()) {
+                Assert.True(singleton.PendingBuffers != null);
+                Assert.True(singleton.DependencyHandle != null);
+            }
+        }
+
         public void InitializesPooledAudioEntities() {
             CreateUninitializedPooledAudioEntity();
 
@@ -109,6 +118,11 @@ namespace MiniAudio.Entities.Tests.EditMode {
             testRunner.TearDown();
             base.TearDown();
             DefaultMiniAudioInitializationProxy.Release();
+        }
+
+        [Test]
+        public void SingletonCommandBufferExists() {
+            testRunner.SingletonCommandBufferExists();
         }
 
         [Test]
