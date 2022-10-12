@@ -24,6 +24,8 @@ namespace MiniAudio.Entities {
         public static implicit operator FreeHandle(UsedHandle handle) {
             return new FreeHandle { Value = handle.Value };
         }
+
+        public static implicit operator uint(UsedHandle value) => value.Value;
     }
 
     [InternalBufferCapacity(32)]

@@ -1,4 +1,6 @@
+using MiniAudio.Entities.Authoring;
 using MiniAudio.Entities.Systems;
+using MiniAudio.Interop;
 using NUnit.Framework;
 using Unity.Collections;
 using Unity.Entities;
@@ -9,9 +11,10 @@ namespace MiniAudio.Entities.Tests.EditMode {
     [DisableAutoCreation]
     public partial class OneShotAudioSystemV2TestRunner : SystemBase {
 
+        const string RelativePath = "Audio/Fire.ogg";
+
         SystemHandle systemHandle;
         EntityCommandBufferSystem entityCommandBufferSystem;
-        EntityQuery blobQuery;
         EntityQuery uninitializedAudioQuery;
         EntityQuery initializedAudioQuery;
 
@@ -19,10 +22,6 @@ namespace MiniAudio.Entities.Tests.EditMode {
             entityCommandBufferSystem =
                 World.CreateSystemManaged<EndInitializationEntityCommandBufferSystem>();
             systemHandle = World.CreateSystem<OneShotAudioSystemV2>();
-
-            blobQuery = SystemAPI.QueryBuilder()
-                .WithAll<Path>()
-                .Build();
 
             uninitializedAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<Path>()
@@ -32,6 +31,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
             initializedAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<Path>()
                 .WithAll<FreeHandle>()
+                .WithAll<UsedHandle>()
                 .WithAll<InitializedAudioTag>()
                 .Build();
         }
@@ -60,9 +60,46 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 var freeHandles = EntityManager.GetBuffer<FreeHandle>(entity);
                 Assert.AreEqual(poolDescriptor.ReserveCapacity, freeHandles.Length);
             }
-            
+
             Assert.AreEqual(0, uninitializedAudioQuery.CalculateEntityCount());
             Assert.AreEqual(1, initializedAudioQuery.CalculateEntityCount());
+        }
+
+        public unsafe void CommandBufferRecordsAndPlaysBack() {
+            InitializesPooledAudioEntities();
+
+            var audioEcbSingleton = SystemAPI.GetSingleton<OneShotAudioSystemV2.Singleton>();
+            var audioCommandBuffer = audioEcbSingleton.CreateCommandBuffer();
+            audioCommandBuffer.Request(
+                new FixedString128Bytes(RelativePath), 
+                1.0f);
+            audioEcbSingleton.AddJobHandleForProducer(Dependency);
+            
+            Assert.AreEqual(1, audioEcbSingleton.PendingBuffers->Length);
+
+            systemHandle.Update(World.Unmanaged);
+            
+            Assert.AreEqual(0, audioEcbSingleton.PendingBuffers->Length);
+            Assert.AreEqual(1, initializedAudioQuery.CalculateEntityCount());
+
+            foreach (var (_, poolDesc, entity) in SystemAPI
+                .Query<Path, AudioPoolDescriptor>().WithEntityAccess()) {
+                var freeHandles = EntityManager.GetBuffer<FreeHandle>(entity);
+                var usedHandles = EntityManager.GetBuffer<UsedHandle>(entity);
+                Assert.AreEqual(poolDesc.ReserveCapacity - 1, freeHandles.Length);
+
+                Assert.AreEqual(1, usedHandles.Length);
+
+                uint handle = usedHandles[0];
+                Assert.AreNotEqual(uint.MaxValue, handle);
+                Assert.True(MiniAudioHandler.IsSoundPlaying(handle));
+            }
+        }
+
+        public void TearDown() {
+            foreach (var pathBlob in SystemAPI.Query<Path>()) {
+                pathBlob.Value.Dispose();
+            }
         }
 
         void CreateUninitializedPooledAudioEntity() {
@@ -77,35 +114,17 @@ namespace MiniAudio.Entities.Tests.EditMode {
             EntityManager.AddBuffer<UsedHandle>(entity);
             EntityManager.AddBuffer<OneShotAudioState>(entity);
 
-            var path = $"/Audio/Fire.ogg";
-            using var builder = new BlobBuilder(World.UpdateAllocator.ToAllocator);
-            ref var pathBlob = ref builder.ConstructRoot<PathBlob>();
-            var charArray = builder.Allocate(ref pathBlob.Path, path.Length);
-
-            for (int i = 0; i < charArray.Length; i++) {
-                charArray[i] = path[i];
-            }
-
-            pathBlob.IsPathStreamingAssets = true;
-            pathBlob.ID = UnityEngine.Hash128.Compute(path);
-            var blobAssetReference = builder
-                .CreateBlobAssetReference<PathBlob>(Allocator.Persistent);
-
+            var blobAssetReference = BaseAudioAuthoring.CreatePathBlob(RelativePath, true);
             EntityManager.AddComponentData(entity, new Path {
                 Value = blobAssetReference
             });
-        }
-
-        public void TearDown() {
-            foreach (var pathBlob in SystemAPI.Query<Path>()) {
-                pathBlob.Value.Dispose();
-            }
         }
     }
 
     public class OneShotAudioSystemV2Tests : ECSTestsFixture {
 
         OneShotAudioSystemV2TestRunner testRunner;
+        
         [SetUp]
         public override void Setup() {
             base.Setup();
@@ -126,9 +145,13 @@ namespace MiniAudio.Entities.Tests.EditMode {
         }
 
         [Test]
+        public void CommandBufferCompletesDependencies() {
+            testRunner.CommandBufferRecordsAndPlaysBack();
+        }
+
+        [Test]
         public void InitializesPooledAudioEntities() {
             testRunner.InitializesPooledAudioEntities();
         }
     }
-
 }

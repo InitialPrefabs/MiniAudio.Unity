@@ -11,7 +11,7 @@ namespace MiniAudio.Entities.Systems {
     public struct AudioCommandBuffer : IDisposable {
 
         internal struct Payload {
-            public Hash128 ID;
+            public Hash128 Hash128;
             public float Volume;
         }
 
@@ -51,20 +51,10 @@ namespace MiniAudio.Entities.Systems {
             this ref AudioCommandBuffer buffer,
             T path,
             float volume) where T : unmanaged, IUTF8Bytes, INativeList<byte> {
-
-            byte* head = path.GetUnsafePtr();
-            var c = new NativeArray<char>(path.Length, Allocator.Temp);
-            Unicode.Utf8ToUtf16(
-                head, 
-                path.Length, 
-                (char*)c.GetUnsafePtr(), 
-                out _, 
-                path.Length);
             
-            Hash128 hash128 = UnityEngine.Hash128.Compute(c);
-            
+            var hash128 = BakeUtils.ComputeHash(path);
             buffer.PlaybackIds->Add(new AudioCommandBuffer.Payload {
-                ID = hash128,
+                Hash128 = hash128,
                 Volume = volume
             });
         }
@@ -77,7 +67,7 @@ namespace MiniAudio.Entities.Systems {
 
             unsafe {
                 buffer.PlaybackIds->Add(new AudioCommandBuffer.Payload {
-                    ID = hash128,
+                    Hash128 = hash128,
                     Volume = volume
                 });
             }

@@ -14,14 +14,26 @@ using Hash128 = Unity.Entities.Hash128;
 namespace MiniAudio.Entities.Systems {
 
     public static unsafe class OneShotAudioSystemExtensions {
+        
+        /// <summary>
+        /// Creates a command buffer to record audio commands.
+        /// </summary>
+        /// <param name="singleton">The Singleton component data that is aliased to the pendingBuffers.</param>
+        /// <param name="allocator">The lifetime of the Allocator</param>
+        /// <returns>An instance of a CommandBuffer that is tracked by the <see cref="OneShotAudioSystemV2"/></returns>
         public static AudioCommandBuffer CreateCommandBuffer(
-            this OneShotAudioSystemV2.Singleton singleton, Allocator allocator) {
+            this ref OneShotAudioSystemV2.Singleton singleton, Allocator allocator = Allocator.TempJob) {
 
             var commandBuffer = new AudioCommandBuffer(allocator);
             singleton.PendingBuffers->Add(commandBuffer);
             return commandBuffer;
         }
 
+        /// <summary>
+        /// Tracks the input dependencies for the job system.
+        /// </summary>
+        /// <param name="singleton">The singleton component data that is aliased to the pendingBuffers.</param>
+        /// <param name="inputDeps">The dependency to track</param>
         public static void AddJobHandleForProducer(
             this ref OneShotAudioSystemV2.Singleton singleton, JobHandle inputDeps) {
             *singleton.DependencyHandle = JobHandle.CombineDependencies(*singleton.DependencyHandle, inputDeps);
@@ -55,7 +67,7 @@ namespace MiniAudio.Entities.Systems {
                 ref readonly var commandBuffer = ref PendingBuffers->ElementAt(index);
                 for (int i = 0; i < commandBuffer.PlaybackIds->Length; i++) {
                     ref readonly var payload = ref commandBuffer.PlaybackIds->ElementAt(i);
-                    if (EntityLookUp.TryGetValue(payload.ID, out var entity)) {
+                    if (EntityLookUp.TryGetValue(payload.Hash128, out var entity)) {
                         var freeHandles = FreeHandles[entity];
                         var usedHandles = UsedHandles[entity];
 
@@ -132,7 +144,7 @@ namespace MiniAudio.Entities.Systems {
                     CommandBuffer.AddComponent<InitializedAudioTag>(entity);
                     // Track the Entity in a ParallelHashMap.
                     EntityLookUp.TryAdd(pathID, entity);
-
+                    
                     var fullPathPointer = new IntPtr(absolutePath.GetUnsafePtr());
 
                     for (int j = 0; j < poolDesc.ReserveCapacity; j++) {
