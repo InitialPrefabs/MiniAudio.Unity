@@ -14,7 +14,7 @@ using Hash128 = Unity.Entities.Hash128;
 namespace MiniAudio.Entities.Systems {
 
     public static unsafe class OneShotAudioSystemExtensions {
-        
+
         /// <summary>
         /// Creates a command buffer to record audio commands.
         /// </summary>
@@ -28,16 +28,6 @@ namespace MiniAudio.Entities.Systems {
             singleton.PendingBuffers->Add(commandBuffer);
             return commandBuffer;
         }
-
-        /// <summary>
-        /// Tracks the input dependencies for the job system.
-        /// </summary>
-        /// <param name="singleton">The singleton component data that is aliased to the pendingBuffers.</param>
-        /// <param name="inputDeps">The dependency to track</param>
-        public static void AddJobHandleForProducer(
-            this ref OneShotAudioSystemV2.Singleton singleton, JobHandle inputDeps) {
-            *singleton.DependencyHandle = JobHandle.CombineDependencies(*singleton.DependencyHandle, inputDeps);
-        }
     }
 
     [BurstCompile]
@@ -47,7 +37,6 @@ namespace MiniAudio.Entities.Systems {
 
         public struct Singleton : IComponentData {
             internal UnsafeList<AudioCommandBuffer>* PendingBuffers;
-            internal JobHandle* DependencyHandle;
         }
 
         [BurstCompile]
@@ -131,8 +120,8 @@ namespace MiniAudio.Entities.Systems {
                     var path = paths[i];
                     var aliasSoundLoadParam = aliasSoundParams[i];
                     var freeHandles = freeHandlesAccessor[i];
-                    ref var pathID = ref path.Value.Value.ID;
-                    ref var pathBlob = ref path.Value.Value.Path;
+                    ref var pathID = ref path.HashedPath();
+                    ref var pathBlob = ref path.PathBlobArray();
                     var poolDesc = poolDescriptors[i];
 
                     // Construct the path
@@ -144,7 +133,7 @@ namespace MiniAudio.Entities.Systems {
                     CommandBuffer.AddComponent<InitializedAudioTag>(entity);
                     // Track the Entity in a ParallelHashMap.
                     EntityLookUp.TryAdd(pathID, entity);
-                    
+
                     var fullPathPointer = new IntPtr(absolutePath.GetUnsafePtr());
 
                     for (int j = 0; j < poolDesc.ReserveCapacity; j++) {
@@ -161,28 +150,18 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-        EntityQuery uninitializedPoolQuery;
+        const int InitialBufferSize = 64;
+
         NativeParallelHashMap<Hash128, Entity> entityLookUp;
-
-        UnsafeList<AudioCommandBuffer>* playbackBuffers;
-        JobHandle* dependencyHandle;
-
-        static T* InitializePointer<T>() where T : unmanaged {
-            return (T*)UnsafeUtility.Malloc(
-                UnsafeUtility.SizeOf<T>(),
-                UnsafeUtility.AlignOf<T>(),
-                Allocator.Persistent);
-        }
+        UnsafeList<AudioCommandBuffer>* pendingBuffers;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static void RegisterSingletonBuffer(
             ref SystemState state,
-            JobHandle* handle,
             UnsafeList<AudioCommandBuffer>* playbackBuffer) {
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new Singleton {
                 PendingBuffers = playbackBuffer,
-                DependencyHandle = handle
             });
         }
 
@@ -197,23 +176,11 @@ namespace MiniAudio.Entities.Systems {
 
         [BurstCompile]
         public void OnCreate(ref SystemState state) {
-            uninitializedPoolQuery = SystemAPI.QueryBuilder()
-                .WithAllRW<AudioPoolDescriptor>()
-                .WithAllRW<OneShotAudioState>()
-                .WithAllRW<FreeHandle>()
-                .WithAll<UsedHandle>()
-                .WithAll<AliasSoundLoadParameters>()
-                .WithNone<InitializedAudioTag>()
-                .Build();
+            entityLookUp = new NativeParallelHashMap<Hash128, Entity>(InitialBufferSize, Allocator.Persistent);
+            pendingBuffers = AllocHelper.InitializePersistentPointer<UnsafeList<AudioCommandBuffer>>();
+            *pendingBuffers = new UnsafeList<AudioCommandBuffer>(InitialBufferSize, Allocator.Persistent);
 
-            entityLookUp = new NativeParallelHashMap<Hash128, Entity>(64, Allocator.Persistent);
-            playbackBuffers = InitializePointer<UnsafeList<AudioCommandBuffer>>();
-            *playbackBuffers = new UnsafeList<AudioCommandBuffer>(64, Allocator.Persistent);
-            
-            dependencyHandle = InitializePointer<JobHandle>();
-            *dependencyHandle = default;
-
-            RegisterSingletonBuffer(ref state, dependencyHandle, playbackBuffers);
+            RegisterSingletonBuffer(ref state, pendingBuffers);
         }
 
         [BurstCompile]
@@ -222,37 +189,39 @@ namespace MiniAudio.Entities.Systems {
                 entityLookUp.Dispose();
             }
 
-            if (playbackBuffers != null) {
-                playbackBuffers->Dispose();
-                UnsafeUtility.Free(playbackBuffers, Allocator.Persistent);
-                playbackBuffers = null;
-            }
-
-            if (dependencyHandle != null) {
-                UnsafeUtility.Free(dependencyHandle, Allocator.Persistent);
-                dependencyHandle = null;
+            if (pendingBuffers != null) {
+                pendingBuffers->Dispose();
+                UnsafeUtility.Free(pendingBuffers, Allocator.Persistent);
+                pendingBuffers = null;
             }
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state) {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (dependencyHandle == null || playbackBuffers == null) {
-                Debug.LogError("The dependencyHandle and playbackBuffers were not initialized!");
+            if (pendingBuffers == null) {
+                Debug.LogError("The PendingBuffers were not initialized!");
                 return;
             }
 #endif
-            dependencyHandle->Complete();
+            var _ = SystemAPI.GetSingletonRW<Singleton>();
+            var uninitializedPoolQuery = SystemAPI.QueryBuilder()
+                .WithAllRW<AudioPoolDescriptor>()
+                .WithAllRW<OneShotAudioState>()
+                .WithAllRW<FreeHandle>()
+                .WithAll<UsedHandle>()
+                .WithAll<AliasSoundLoadParameters>()
+                .WithNone<InitializedAudioTag>()
+                .Build();
 
-            // TODO: Clear the pending buffers list.
             new PlaybackPendingBuffersJob {
-                PendingBuffers = playbackBuffers,
+                PendingBuffers = pendingBuffers,
                 EntityLookUp = entityLookUp,
                 FreeHandles = SystemAPI.GetBufferLookup<FreeHandle>(),
                 UsedHandles = SystemAPI.GetBufferLookup<UsedHandle>()
-            }.Run(playbackBuffers->Length);
+            }.Run(pendingBuffers->Length);
 
-            FlushPendingBuffers(playbackBuffers);
+            FlushPendingBuffers(pendingBuffers);
 
             var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
             var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);

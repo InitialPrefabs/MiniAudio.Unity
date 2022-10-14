@@ -5,6 +5,8 @@ using NUnit.Framework;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Entities.Tests;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace MiniAudio.Entities.Tests.EditMode {
 
@@ -43,7 +45,6 @@ namespace MiniAudio.Entities.Tests.EditMode {
             Assert.AreEqual(1, query.CalculateEntityCount());
             foreach (var singleton in SystemAPI.Query<OneShotAudioSystemV2.Singleton>()) {
                 Assert.True(singleton.PendingBuffers != null);
-                Assert.True(singleton.DependencyHandle != null);
             }
         }
 
@@ -73,7 +74,6 @@ namespace MiniAudio.Entities.Tests.EditMode {
             audioCommandBuffer.Request(
                 new FixedString128Bytes(RelativePath), 
                 1.0f);
-            audioEcbSingleton.AddJobHandleForProducer(Dependency);
             
             Assert.AreEqual(1, audioEcbSingleton.PendingBuffers->Length);
 
@@ -82,6 +82,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
             Assert.AreEqual(0, audioEcbSingleton.PendingBuffers->Length);
             Assert.AreEqual(1, initializedAudioQuery.CalculateEntityCount());
 
+            bool tested = false;
             foreach (var (_, poolDesc, entity) in SystemAPI
                 .Query<Path, AudioPoolDescriptor>().WithEntityAccess()) {
                 var freeHandles = EntityManager.GetBuffer<FreeHandle>(entity);
@@ -93,7 +94,9 @@ namespace MiniAudio.Entities.Tests.EditMode {
                 uint handle = usedHandles[0];
                 Assert.AreNotEqual(uint.MaxValue, handle);
                 Assert.True(MiniAudioHandler.IsSoundPlaying(handle));
+                tested = true;
             }
+            Assert.True(tested);
         }
 
         public void TearDown() {
@@ -152,6 +155,15 @@ namespace MiniAudio.Entities.Tests.EditMode {
         [Test]
         public void InitializesPooledAudioEntities() {
             testRunner.InitializesPooledAudioEntities();
+        }
+
+        [Test]
+        public void OneShotAudioSystemTestsErrors() {
+            var system = new OneShotAudioSystemV2();
+            var systemState = new SystemState();
+            
+            system.OnUpdate(ref systemState);
+            LogAssert.Expect(LogType.Error, "The PendingBuffers were not initialized!");
         }
     }
 }

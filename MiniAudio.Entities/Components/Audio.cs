@@ -3,6 +3,15 @@ using Unity.Entities;
 
 namespace MiniAudio.Entities {
 
+    public static class PathExtensions {
+        public static ref bool IsStreamingAssets(this ref Path path) => 
+            ref path.Value.Value.IsPathStreamingAssets;
+        public static ref BlobArray<char> PathBlobArray(this ref Path path) => 
+            ref path.Value.Value.Path;
+
+        public static ref Hash128 HashedPath(this ref Path path) => ref path.Value.Value.ID;
+    }
+
     /// <summary>
     /// Describes the current state of the Audio.
     /// </summary>

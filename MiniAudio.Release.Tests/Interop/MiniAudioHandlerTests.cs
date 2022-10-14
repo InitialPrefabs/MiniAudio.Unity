@@ -6,7 +6,7 @@ using UnityEngine.TestTools;
 
 namespace MiniAudio.Interop.Tests {
 
-    public unsafe class MiniAudioHandlerTests {
+    public class MiniAudioHandlerTests {
 
         string audioPath;
 

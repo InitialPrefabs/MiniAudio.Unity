@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace MiniAudio.Common {
+
     internal static class CollectionExtensions {
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

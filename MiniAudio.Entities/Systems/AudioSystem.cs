@@ -113,7 +113,7 @@ namespace MiniAudio.Entities.Systems {
         }
 
         [BurstCompile]
-        // [WithChangeFilter(typeof(AudioClip))]
+        [WithChangeFilter(typeof(AudioClip))]
         struct ManageAudioStateJob : IJobChunk {
 
             [ReadOnly]
@@ -135,9 +135,9 @@ namespace MiniAudio.Entities.Systems {
                 bool useEnabledMask, 
                 in v128 chunkEnabledMask) {
 
-                // if (!chunk.DidChange(AudioClipType, LastSystemVersion)) {
-                //     return;
-                // }
+                if (!chunk.DidChange(AudioClipType, LastSystemVersion)) {
+                    return;
+                }
 
                 var audioClips = chunk.GetNativeArray(AudioClipType);
                 var stateTypes = chunk.GetNativeArray(AudioStateHistoryType);
