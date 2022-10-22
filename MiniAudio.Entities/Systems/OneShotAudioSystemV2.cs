@@ -198,6 +198,9 @@ namespace MiniAudio.Entities.Systems {
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state) {
+            if (!MiniAudioHandler.IsEngineInitialized()) {
+                return;
+            }
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (pendingBuffers == null) {
                 Debug.LogError("The PendingBuffers were not initialized!");

@@ -14,25 +14,7 @@ namespace MiniAudio.Interop.Tests {
         public IEnumerator SetUp() {
             audioPath = Path.Combine(Application.streamingAssetsPath, "Audio", "Stronghold.mp3");
             Assert.IsTrue(File.Exists(audioPath));
-
-            var initializedProxy = Object.FindObjectOfType<DefaultMiniAudioInitializationProxy>();
-            if (initializedProxy != null) {
-                Object.Destroy(initializedProxy.gameObject);
-                yield return null;
-            }
-
             yield return null;
-            DefaultMiniAudioInitializationProxy.Setup();
-        }
-
-        [UnityTearDown]
-        public IEnumerator TearDown() {
-            var initializedProxy = Object.FindObjectOfType<DefaultMiniAudioInitializationProxy>();
-            Assert.IsNotNull(initializedProxy);
-            Object.Destroy(initializedProxy);
-
-            yield return null;
-            Assert.False(StreamingAssetsHelper.Path.Data.IsCreated);
         }
 
         [UnityTest]
