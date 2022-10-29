@@ -68,6 +68,7 @@ namespace MiniAudio.Entities.Systems {
                     if (handle != uint.MaxValue) {
                         audioClip.Handle = handle;
                         CommandBuffer.SetComponent(entity, audioClip);
+                        CommandBuffer.AddComponent<InitializedAudioTag>(entity);
                     }
                     UnsafeUtility.MemClear(fullPath.GetUnsafePtr(), fullPath.Length * sizeof(char));
                     fullPath.Clear();
@@ -135,7 +136,7 @@ namespace MiniAudio.Entities.Systems {
                 bool useEnabledMask, 
                 in v128 chunkEnabledMask) {
 
-                if (!chunk.DidChange(AudioClipType, LastSystemVersion)) {
+                if (chunk.GetChangeVersion(AudioClipType) == LastSystemVersion) {
                     return;
                 }
 
@@ -159,6 +160,7 @@ namespace MiniAudio.Entities.Systems {
                                 MiniAudioHandler.StopSound(audioClip.Handle, true);
                                 break;
                             case AudioState.Paused:
+                                // Debug.Log($"Pausing clip: {audioClip.Handle}");
                                 MiniAudioHandler.StopSound(audioClip.Handle, false);
                                 break;
                         }
@@ -170,15 +172,8 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
-        EntityQuery soundQuery;
-
         [BurstCompile]
-        public void OnCreate(ref SystemState state) {
-            soundQuery = SystemAPI.QueryBuilder()
-                .WithAll<AudioClip>()
-                .WithAll<AudioStateHistory>()
-                .Build();
-        }
+        public void OnCreate(ref SystemState state) { }
 
         [BurstCompile]
         public void OnDestroy(ref SystemState state) { }
@@ -188,6 +183,18 @@ namespace MiniAudio.Entities.Systems {
             if (!MiniAudioHandler.IsEngineInitialized()) {
                 return;
             }
+            
+            var uninitializedSoundQuery = SystemAPI.QueryBuilder()
+                .WithAllRW<AudioClip>()
+                .WithAllRW<AudioStateHistory>()
+                .WithNone<InitializedAudioTag>()
+                .Build();
+
+            var initializedSoundQuery = SystemAPI.QueryBuilder()
+                .WithAllRW<AudioClip>()
+                .WithAllRW<AudioStateHistory>()
+                .WithAll<InitializedAudioTag>()
+                .Build();
 
             var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
             var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
@@ -201,21 +208,21 @@ namespace MiniAudio.Entities.Systems {
                 AudioClipType = audioClipType,
                 EntityType = entityType,
                 CommandBuffer = commandBuffer,
-            }.Run(soundQuery);
+            }.Run(uninitializedSoundQuery);
             
             new StopSoundJob {
                 CommandBuffer = commandBuffer,
                 AudioClipType = audioClipType,
                 EntityType = entityType,
-            }.Run(soundQuery);
-            
+            }.Run(initializedSoundQuery);
+
             new ManageAudioStateJob {
                 AudioStateHistoryType = audioStateHistoryType,
                 AudioClipType = audioClipType,
                 LastSystemVersion = state.LastSystemVersion,
                 EntityType = entityType,
                 CommandBuffer = commandBuffer
-            }.Run(soundQuery);
+            }.Run(initializedSoundQuery);
         }
     }
 }

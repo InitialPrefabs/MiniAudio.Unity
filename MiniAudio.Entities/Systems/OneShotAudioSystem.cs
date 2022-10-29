@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Runtime.CompilerServices;
 using MiniAudio.Common;
 using MiniAudio.Interop;
 using Unity.Burst;
@@ -7,349 +8,236 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
-using Unity.Mathematics;
 using UnityEngine;
+using Hash128 = Unity.Entities.Hash128;
 
 namespace MiniAudio.Entities.Systems {
 
+    public static unsafe class OneShotAudioSystemExtensions {
+
+        /// <summary>
+        /// Creates a command buffer to record audio commands.
+        /// </summary>
+        /// <param name="singleton">The Singleton component data that is aliased to the pendingBuffers.</param>
+        /// <param name="allocator">The lifetime of the Allocator</param>
+        /// <returns>An instance of a CommandBuffer that is tracked by the <see cref="OneShotAudioSystem"/></returns>
+        public static AudioCommandBuffer CreateCommandBuffer(
+            this ref OneShotAudioSystem.Singleton singleton, Allocator allocator = Allocator.TempJob) {
+
+            var commandBuffer = new AudioCommandBuffer(allocator);
+            singleton.PendingBuffers->Add(commandBuffer);
+            return commandBuffer;
+        }
+    }
+
+    [BurstCompile]
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
-    [UpdateAfter(typeof(AudioSystem))]
-    [Obsolete]
-    [DisableAutoCreation]
-    public partial class OneShotAudioSystem : SystemBase {
+    [RequireMatchingQueriesForUpdate]
+    public unsafe partial struct OneShotAudioSystem : ISystem {
 
-        [BurstCompile]
-        unsafe struct InitializePooledAudioJob : IJobChunk {
-
-            [WriteOnly]
-            public NativeParallelHashMap<uint, Entity> EntityLookUp;
-
-            [ReadOnly]
-            public EntityTypeHandle EntityType;
-
-            [ReadOnly]
-            public NativeArray<char> StreamingPath;
-
-            [ReadOnly]
-            public ComponentTypeHandle<Path> PathType;
-
-            [ReadOnly]
-            public ComponentTypeHandle<AliasSoundLoadParameters> SoundLoadParamsType;
-
-            public ComponentTypeHandle<AudioPoolDescriptor> PoolDescriptorType;
-
-            public BufferTypeHandle<OneShotAudioState> OneShotAudioStateType;
-
-            public BufferTypeHandle<FreeHandle> FreeHandleType;
-
-            public EntityCommandBuffer CommandBuffer;
-
-            [NativeDisableContainerSafetyRestriction]
-            NativeList<char> fullPath;
-
-            public void Execute(
-                in ArchetypeChunk chunk, 
-                int unfilteredChunkIndex, 
-                bool useEnabledMask, 
-                in v128 chunkEnabledMask) {
-                
-                if (!fullPath.IsCreated) {
-                    fullPath = new NativeList<char>(StreamingPath.Length, Allocator.Temp);
-                }
-
-                var freeHandles = chunk.GetBufferAccessor(FreeHandleType);
-                var soundLoadParams = chunk.GetNativeArray(SoundLoadParamsType);
-                var poolDescriptors = chunk.GetNativeArray(PoolDescriptorType);
-                var oneShotAudioStates = chunk.GetBufferAccessor(OneShotAudioStateType);
-                var paths = chunk.GetNativeArray(PathType);
-                var entities = chunk.GetNativeArray(EntityType);
-
-                for (int i = 0; i < chunk.Count; i++) {
-                    ref var poolDescriptor = ref poolDescriptors.ElementAt(i);
-                    // if (poolDescriptor.IsLoaded) {
-                    //     continue;
-                    // }
-
-                    var loadPath = paths[i];
-                    var freeHandleBuffer = freeHandles[i];
-                    var oneShotAudioStateBuffer = oneShotAudioStates[i];
-                    var entity = entities[i];
-
-                    oneShotAudioStateBuffer.Clear();
-                    freeHandleBuffer.Clear();
-
-                    if (loadPath.IsStreamingAssets) {
-                        fullPath.AddRangeNoResize(
-                            StreamingPath.GetUnsafeReadOnlyPtr(),
-                            StreamingPath.Length);
-                    }
-
-                    ref var path = ref loadPath.Value.Value.Path;
-                    fullPath.AddRange(path.GetUnsafePtr(), path.Length);
-
-                    // Hash the path so we can store the entities and do quick lookup.
-                    var poolId = new AudioPoolID {
-                        Value = math.hash(path.GetUnsafePtr(), path.Length * sizeof(char))
-                    };
-                    CommandBuffer.AddComponent(entity, poolId);
-
-                    EntityLookUp.TryAdd(poolId.Value, entities[i]);
-                    var soundLoadParam = soundLoadParams[i];
-
-                    for (int j = 0; j < poolDescriptor.ReserveCapacity; j++) {
-                        var handle = MiniAudioHandler.UnsafeLoadSound(
-                            new IntPtr(fullPath.GetUnsafeReadOnlyPtr()),
-                            (uint)fullPath.Length,
-                            new IntPtr(&soundLoadParam));
-
-                        if (handle != uint.MaxValue) {
-                            freeHandleBuffer.Add(new FreeHandle { Value = handle });
-                            oneShotAudioStateBuffer.Add(AudioState.Stopped);
-                        }
-                    }
-
-                    // poolDescriptor.IsLoaded = true;
-                    fullPath.Clear();
-                }
-            }
-        }
-        
-        [Obsolete]
-        [BurstCompile]
-        struct RemoveTrackedPooledEntityJob : IJobChunk {
-
-            [WriteOnly]
-            public NativeParallelHashMap<uint, Entity> EntityLookUp;
-
-            [ReadOnly]
-            public ComponentTypeHandle<AudioPoolID> AudioPoolDescriptorType;
-
-            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
-                var audioPoolDescriptors = chunk.GetNativeArray(AudioPoolDescriptorType);
-                for (int i = 0; i < chunk.Count; i++) {
-                    EntityLookUp.Remove(audioPoolDescriptors[i].Value);
-                }
-            }
+        public struct Singleton : IComponentData {
+            internal UnsafeList<AudioCommandBuffer>* PendingBuffers;
         }
 
-        // TODO: Finish implementing.
         [BurstCompile]
-        unsafe struct PlaybackCommandBufferJob : IJobFor {
+        struct PlaybackPendingBuffersJob : IJobFor {
+
+            [NativeDisableUnsafePtrRestriction]
+            public UnsafeList<AudioCommandBuffer>* PendingBuffers;
 
             [ReadOnly]
-            public NativeArray<AudioCommandBuffer> AudioCommandBuffers;
-
-            [ReadOnly]
-            public NativeParallelHashMap<uint, Entity> EntityLookUp;
+            public NativeParallelHashMap<Hash128, Entity> EntityLookUp;
 
             public BufferLookup<FreeHandle> FreeHandles;
 
             public BufferLookup<UsedHandle> UsedHandles;
 
             public void Execute(int index) {
-                var commandBuffer = AudioCommandBuffers[index];
+                ref readonly var commandBuffer = ref PendingBuffers->ElementAt(index);
                 for (int i = 0; i < commandBuffer.PlaybackIds->Length; i++) {
-                    var payload = commandBuffer.PlaybackIds->ElementAt(i);
-                    // if (EntityLookUp.TryGetValue(payload.ID, out Entity entity)) {
-                    //     var soundFreeHandles = FreeHandles[entity];
-                    //     var soundInPlayHandles = UsedHandles[entity];
-                    //
-                    //     if (soundFreeHandles.Length > 0) {
-                    //         var last = soundFreeHandles.Length - 1;
-                    //         var freeHandle = soundFreeHandles[last];
-                    //
-                    //         // Play the sound
-                    //         MiniAudioHandler.PlaySound(freeHandle.Value);
-                    //         MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
-                    //         soundFreeHandles.RemoveAt(soundFreeHandles.Length - 1);
-                    //
-                    //         soundInPlayHandles.Add(freeHandle);
-                    //     } // TODO: Load a sound
-                    // }
+                    ref readonly var payload = ref commandBuffer.PlaybackIds->ElementAt(i);
+                    if (EntityLookUp.TryGetValue(payload.Hash128, out var entity)) {
+                        var freeHandles = FreeHandles[entity];
+                        var usedHandles = UsedHandles[entity];
+
+                        if (freeHandles.Length > 0) {
+                            var last = freeHandles.Length - 1;
+                            var freeHandle = freeHandles[last];
+                            MiniAudioHandler.PlaySound(freeHandle.Value);
+                            MiniAudioHandler.SetSoundVolume(freeHandle.Value, payload.Volume);
+
+                            freeHandles.RemoveAt(last);
+                            usedHandles.Add(freeHandle);
+                        }
+                    } // TODO: allow a grow command
                 }
             }
         }
 
         [BurstCompile]
-        struct ManageOneShotAudioJob : IJobChunk {
+        struct InitializePooledAudioJob : IJobChunk {
 
-            public BufferTypeHandle<UsedHandle> UsedHandleType;
+            [WriteOnly]
+            public NativeParallelHashMap<Hash128, Entity> EntityLookUp;
+
+            [ReadOnly]
+            public EntityTypeHandle EntityType;
+
+            [ReadOnly]
+            public ComponentTypeHandle<Path> PathType;
+
+            [ReadOnly]
+            public ComponentTypeHandle<AliasSoundLoadParameters> SoundLoadParamType;
+
+            [ReadOnly]
+            public ComponentTypeHandle<AudioPoolDescriptor> PoolDescriptorType;
 
             public BufferTypeHandle<FreeHandle> FreeHandleType;
 
+            public EntityCommandBuffer CommandBuffer;
+
             [NativeDisableContainerSafetyRestriction]
-            NativeList<int> cleanUp;
+            NativeList<char> absolutePath;
 
             public void Execute(
-                in ArchetypeChunk chunk, 
-                int unfilteredChunkIndex, 
-                bool useEnabledMask, 
+                in ArchetypeChunk chunk,
+                int unfilteredChunkIndex,
+                bool useEnabledMask,
                 in v128 chunkEnabledMask) {
-                
-                if (!cleanUp.IsCreated) {
-                    cleanUp = new NativeList<int>(10, Allocator.Temp);
+
+                if (!absolutePath.IsCreated) {
+                    absolutePath = new NativeList<char>(100, Allocator.Temp);
                 }
 
-                var usedHandlesAccessor = chunk.GetBufferAccessor(UsedHandleType);
+                var entities = chunk.GetNativeArray(EntityType);
+                var paths = chunk.GetNativeArray(PathType);
                 var freeHandlesAccessor = chunk.GetBufferAccessor(FreeHandleType);
+                var poolDescriptors = chunk.GetNativeArray(PoolDescriptorType);
+                var aliasSoundParams = chunk.GetNativeArray(SoundLoadParamType);
+
                 for (int i = 0; i < chunk.Count; i++) {
-                    var usedHandles = usedHandlesAccessor[i];
+                    var entity = entities[i];
+                    var path = paths[i];
+                    var aliasSoundLoadParam = aliasSoundParams[i];
                     var freeHandles = freeHandlesAccessor[i];
+                    ref var pathID = ref path.HashedPath();
+                    ref var pathBlob = ref path.PathBlobArray();
+                    var poolDesc = poolDescriptors[i];
 
-                    for (int j = usedHandles.Length - 1; j >= 0; j--) {
-                        var handle = usedHandles[j];
-                        if (MiniAudioHandler.IsSoundFinished(usedHandles[j].Value)) {
-                            // Stop the sound so we can rewind it
-                            MiniAudioHandler.StopSound(handle.Value, true);
+                    // Construct the path
+                    absolutePath.Clear();
+                    absolutePath.AddRangeNoResize(
+                        StreamingAssetsHelper.Path.Data.Ptr, StreamingAssetsHelper.Path.Data.Length);
+                    absolutePath.AddRange(pathBlob.GetUnsafePtr(), pathBlob.Length);
 
-                            // The value will be stored into the FreeHandle buffer so that it can 
-                            // be reused.
+                    CommandBuffer.AddComponent<InitializedAudioTag>(entity);
+                    // Track the Entity in a ParallelHashMap.
+                    EntityLookUp.TryAdd(pathID, entity);
+
+                    var fullPathPointer = new IntPtr(absolutePath.GetUnsafePtr());
+
+                    for (int j = 0; j < poolDesc.ReserveCapacity; j++) {
+                        var handle = MiniAudioHandler.UnsafeLoadSound(
+                            fullPathPointer,
+                            (uint)absolutePath.Length,
+                            new IntPtr(&aliasSoundLoadParam));
+
+                        if (handle != uint.MaxValue) {
                             freeHandles.Add(handle);
-
-                            // Collect the index so we can remove it from the UsedHandle
-                            cleanUp.Add(j);
                         }
                     }
-
-                    for (int j = 0; j < cleanUp.Length; j++) {
-                        usedHandles.RemoveAtSwapBack(cleanUp[j]);
-                    }
-
-                    cleanUp.Clear();
                 }
             }
         }
 
-        NativeParallelHashMap<uint, Entity> entityLookUp;
-        EntityQuery uninitializeAudioPoolQuery;
-        EntityQuery cleanUpEntityQuery;
-        EntityQuery oneShotAudioQuery;
+        const int InitialBufferSize = 64;
 
-        NativeArray<char> fixedStreamingPath;
-        NativeList<AudioCommandBuffer> audioCommandBuffers;
+        NativeParallelHashMap<Hash128, Entity> entityLookUp;
+        UnsafeList<AudioCommandBuffer>* pendingBuffers;
 
-        EntityCommandBufferSystem commandBufferSystem;
-        JobHandle frameDependency;
-
-        protected override void OnCreate() {
-            uninitializeAudioPoolQuery = GetEntityQuery(new EntityQueryDesc {
-                All = new[] {
-                    ComponentType.ReadWrite<AudioPoolDescriptor>(),
-                    ComponentType.ReadWrite<FreeHandle>(),
-                    ComponentType.ReadWrite<OneShotAudioState>(),
-                    ComponentType.ReadOnly<UsedHandle>(),
-                    ComponentType.ReadOnly<AliasSoundLoadParameters>(),
-                },
-                None = new[] {
-                    ComponentType.ReadWrite<AudioPoolID>()
-                }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void RegisterSingletonBuffer(
+            ref SystemState state,
+            UnsafeList<AudioCommandBuffer>* playbackBuffer) {
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new Singleton {
+                PendingBuffers = playbackBuffer,
             });
-
-            cleanUpEntityQuery = GetEntityQuery(new EntityQueryDesc {
-                All = new[] {
-                    ComponentType.ReadWrite<AudioPoolID>()
-                },
-                None = new[] {
-                    ComponentType.ReadWrite<AudioPoolDescriptor>(),
-                    ComponentType.ReadOnly<FreeHandle>(),
-                    ComponentType.ReadOnly<UsedHandle>(),
-                    ComponentType.ReadOnly<AliasSoundLoadParameters>(),
-                    ComponentType.ReadOnly<OneShotAudioState>()
-                }
-            });
-
-            oneShotAudioQuery = GetEntityQuery(new EntityQueryDesc {
-                All = new[] {
-                    ComponentType.ReadWrite<FreeHandle>(), ComponentType.ReadWrite<UsedHandle>()
-                }
-            });
-
-            var streamingPath = Application.streamingAssetsPath;
-            fixedStreamingPath = new NativeArray<char>(streamingPath.Length, Allocator.Persistent);
-
-            for (int i = 0; i < streamingPath.Length; i++) {
-                fixedStreamingPath[i] = streamingPath[i];
-            }
-
-            entityLookUp = new NativeParallelHashMap<uint, Entity>(10, Allocator.Persistent);
-            audioCommandBuffers = new NativeList<AudioCommandBuffer>(10, Allocator.Persistent);
-            commandBufferSystem = World.GetExistingSystemManaged<EndInitializationEntityCommandBufferSystem>();
         }
 
-        protected override void OnDestroy() {
-            if (fixedStreamingPath.IsCreated) {
-                fixedStreamingPath.Dispose();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void FlushPendingBuffers(UnsafeList<AudioCommandBuffer>* playbackBuffers) {
+            for (int i = 0; i < playbackBuffers->Length; i++) {
+                ref var cmdBuffer = ref playbackBuffers->ElementAt(i);
+                cmdBuffer.Dispose();
             }
+            playbackBuffers->Clear();
+        }
 
+        [BurstCompile]
+        public void OnCreate(ref SystemState state) {
+            entityLookUp = new NativeParallelHashMap<Hash128, Entity>(InitialBufferSize, Allocator.Persistent);
+            pendingBuffers = AllocHelper.InitializePersistentPointer<UnsafeList<AudioCommandBuffer>>();
+            *pendingBuffers = new UnsafeList<AudioCommandBuffer>(InitialBufferSize, Allocator.Persistent);
+
+            RegisterSingletonBuffer(ref state, pendingBuffers);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
             if (entityLookUp.IsCreated) {
                 entityLookUp.Dispose();
             }
 
-            if (audioCommandBuffers.IsCreated) {
-                audioCommandBuffers.Dispose();
+            if (pendingBuffers != null) {
+                pendingBuffers->Dispose();
+                UnsafeUtility.Free(pendingBuffers, Allocator.Persistent);
+                pendingBuffers = null;
             }
         }
 
-        protected override void OnUpdate() {
-            frameDependency.Complete();
-            frameDependency = default;
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state) {
+            if (!MiniAudioHandler.IsEngineInitialized()) {
+                return;
+            }
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (pendingBuffers == null) {
+                Debug.LogError("The PendingBuffers were not initialized!");
+                return;
+            }
+#endif
+            var _ = SystemAPI.GetSingletonRW<Singleton>();
+            var uninitializedPoolQuery = SystemAPI.QueryBuilder()
+                .WithAllRW<AudioPoolDescriptor>()
+                .WithAllRW<OneShotAudioState>()
+                .WithAllRW<FreeHandle>()
+                .WithAll<UsedHandle>()
+                .WithAll<AliasSoundLoadParameters>()
+                .WithNone<InitializedAudioTag>()
+                .Build();
 
-            var commandBuffer = commandBufferSystem.CreateCommandBuffer();
+            new PlaybackPendingBuffersJob {
+                PendingBuffers = pendingBuffers,
+                EntityLookUp = entityLookUp,
+                FreeHandles = SystemAPI.GetBufferLookup<FreeHandle>(),
+                UsedHandles = SystemAPI.GetBufferLookup<UsedHandle>()
+            }.Run(pendingBuffers->Length);
+
+            FlushPendingBuffers(pendingBuffers);
+
+            var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
+            var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
 
             new InitializePooledAudioJob {
-                PathType = GetComponentTypeHandle<Path>(true),
-                SoundLoadParamsType = GetComponentTypeHandle<AliasSoundLoadParameters>(true),
-                FreeHandleType = GetBufferTypeHandle<FreeHandle>(false),
-                PoolDescriptorType = GetComponentTypeHandle<AudioPoolDescriptor>(false),
-                OneShotAudioStateType = GetBufferTypeHandle<OneShotAudioState>(false),
-                EntityType = GetEntityTypeHandle(),
-                StreamingPath = fixedStreamingPath,
                 EntityLookUp = entityLookUp,
+                PathType = state.GetComponentTypeHandle<Path>(true),
+                EntityType = state.GetEntityTypeHandle(),
+                SoundLoadParamType = state.GetComponentTypeHandle<AliasSoundLoadParameters>(true),
+                PoolDescriptorType = state.GetComponentTypeHandle<AudioPoolDescriptor>(true),
+                FreeHandleType = state.GetBufferTypeHandle<FreeHandle>(),
                 CommandBuffer = commandBuffer
-            }.Run(uninitializeAudioPoolQuery);
-
-            new ManageOneShotAudioJob {
-                FreeHandleType = GetBufferTypeHandle<FreeHandle>(false),
-                UsedHandleType = GetBufferTypeHandle<UsedHandle>(false),
-            }.Run(oneShotAudioQuery);
-
-            if (audioCommandBuffers.Length > 0) {
-                new PlaybackCommandBufferJob {
-                    AudioCommandBuffers = audioCommandBuffers.AsArray(),
-                    EntityLookUp = entityLookUp,
-                    FreeHandles = GetBufferLookup<FreeHandle>(false),
-                    UsedHandles = GetBufferLookup<UsedHandle>(false),
-                }.Run(audioCommandBuffers.Length);
-
-                // Perform the clean up
-                for (int i = 0; i < audioCommandBuffers.Length; i++) {
-                    var audioCommandBuffer = audioCommandBuffers[i];
-                    audioCommandBuffer.Dispose();
-                }
-                audioCommandBuffers.Clear();
-            }
-
-            if (!cleanUpEntityQuery.IsEmpty) {
-                new RemoveTrackedPooledEntityJob {
-                    AudioPoolDescriptorType = GetComponentTypeHandle<AudioPoolID>(true),
-                    EntityLookUp = entityLookUp
-                }.Run(cleanUpEntityQuery);
-
-                commandBuffer.RemoveComponentForEntityQuery<AudioPoolDescriptor>(cleanUpEntityQuery);
-            }
-
-            commandBufferSystem.AddJobHandleForProducer(Dependency);
-            commandBufferSystem.AddJobHandleForProducer(Dependency);
-        }
-
-        public AudioCommandBuffer CreateCommandBuffer(Allocator allocator = Allocator.TempJob) {
-            var cmdBuffer = new AudioCommandBuffer(allocator);
-            audioCommandBuffers.Add(cmdBuffer);
-            return cmdBuffer;
-        }
-
-        public void AddJobHandleForProducer(JobHandle jobHandle) {
-            JobHandle.CombineDependencies(jobHandle, frameDependency);
+            }.Run(uninitializedPoolQuery);
         }
     }
 }

@@ -23,7 +23,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
         protected override void OnCreate() {
             entityCommandBufferSystem =
                 World.CreateSystemManaged<EndInitializationEntityCommandBufferSystem>();
-            systemHandle = World.CreateSystem<OneShotAudioSystemV2>();
+            systemHandle = World.CreateSystem<OneShotAudioSystem>();
 
             uninitializedAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<Path>()
@@ -41,9 +41,9 @@ namespace MiniAudio.Entities.Tests.EditMode {
         protected override void OnUpdate() { }
 
         public unsafe void SingletonCommandBufferExists() {
-            var query = SystemAPI.QueryBuilder().WithAll<OneShotAudioSystemV2.Singleton>().Build();
+            var query = SystemAPI.QueryBuilder().WithAll<OneShotAudioSystem.Singleton>().Build();
             Assert.AreEqual(1, query.CalculateEntityCount());
-            foreach (var singleton in SystemAPI.Query<OneShotAudioSystemV2.Singleton>()) {
+            foreach (var singleton in SystemAPI.Query<OneShotAudioSystem.Singleton>()) {
                 Assert.True(singleton.PendingBuffers != null);
             }
         }
@@ -69,7 +69,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
         public unsafe void CommandBufferRecordsAndPlaysBack() {
             InitializesPooledAudioEntities();
 
-            var audioEcbSingleton = SystemAPI.GetSingleton<OneShotAudioSystemV2.Singleton>();
+            var audioEcbSingleton = SystemAPI.GetSingleton<OneShotAudioSystem.Singleton>();
             var audioCommandBuffer = audioEcbSingleton.CreateCommandBuffer();
             audioCommandBuffer.Request(
                 new FixedString128Bytes(RelativePath), 
@@ -159,7 +159,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
         [Test]
         public void OneShotAudioSystemTestsErrors() {
-            var system = new OneShotAudioSystemV2();
+            var system = new OneShotAudioSystem();
             var systemState = new SystemState();
             
             system.OnUpdate(ref systemState);

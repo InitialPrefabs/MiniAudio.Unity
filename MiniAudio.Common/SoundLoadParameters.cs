@@ -3,7 +3,7 @@ using System;
 namespace MiniAudio.Interop {
 
     [Serializable]
-    public struct SoundLoadParameters {
+    public struct SoundLoadParameters : IEquatable<SoundLoadParameters> {
 
         /// <summary>
         /// Is the AudioClip looping?
@@ -24,5 +24,13 @@ namespace MiniAudio.Interop {
         /// The end time of the AudioClip in milliseconds.
         /// </summary>
         public uint EndTime;
+        
+        public bool Equals(SoundLoadParameters other) {
+            return IsLooping == other.IsLooping && Volume.Equals(other.Volume) && StartTime == other.StartTime && EndTime == other.EndTime;
+        }
+        
+        public override int GetHashCode() {
+            return IsLooping.GetHashCode() ^ Volume.GetHashCode() ^ StartTime.GetHashCode() ^ EndTime.GetHashCode();
+        }
     }
 }
