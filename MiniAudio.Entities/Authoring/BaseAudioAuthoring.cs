@@ -24,8 +24,14 @@ namespace MiniAudio.Entities.Authoring {
             for (int i = 0; i < adjustedPath.Length; i++) {
                 charArray[i] = adjustedPath[i];
             }
+     
 
             pathBlob.ID = BakeUtils.ComputeHash(path);
+                   
+#if UNITY_EDITOR
+            Debug.Log($"Requested: {pathBlob.ID} for path: {path}");      
+#endif
+            
             pathBlob.IsPathStreamingAssets = isPathStreamingAssets;
             return builder.CreateBlobAssetReference<PathBlob>(Allocator.Persistent);
         }

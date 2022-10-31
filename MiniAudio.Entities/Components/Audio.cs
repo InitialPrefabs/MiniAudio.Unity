@@ -99,6 +99,9 @@ namespace MiniAudio.Entities {
         public AudioState Value;
     }
 
-    internal struct InitializedAudioTag : ICleanupComponentData {
+    public struct InitializedAudioTag : ICleanupComponentData { }
+
+    public struct AudioPoolID : ICleanupComponentData {
+        public Hash128 Value;
     }
 }

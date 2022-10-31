@@ -1,5 +1,4 @@
 using MiniAudio.Interop;
-using System;
 using Unity.Entities;
 
 namespace MiniAudio.Entities {
@@ -75,11 +74,6 @@ namespace MiniAudio.Entities {
 
     public struct AudioPoolDescriptor : IComponentData {
         public ushort ReserveCapacity;
-    }
-
-    [Obsolete]
-    public struct AudioPoolID : ICleanupComponentData {
-        public uint Value;
     }
 }
 
