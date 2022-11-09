@@ -34,6 +34,25 @@ namespace MiniAudio.Entities.Systems {
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     public unsafe partial struct OneShotAudioSystem : ISystem {
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void RegisterSingletonBuffer(
+            ref SystemState state,
+            UnsafeList<AudioCommandBuffer>* playbackBuffer) {
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new Singleton {
+                PendingBuffers = playbackBuffer,
+            });
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void FlushPendingBuffers(UnsafeList<AudioCommandBuffer>* playbackBuffers) {
+            for (int i = 0; i < playbackBuffers->Length; i++) {
+                ref var cmdBuffer = ref playbackBuffers->ElementAt(i);
+                cmdBuffer.Dispose();
+            }
+            playbackBuffers->Clear();
+        }
+
         public struct Singleton : IComponentData {
             internal UnsafeList<AudioCommandBuffer>* PendingBuffers;
         }
@@ -186,7 +205,7 @@ namespace MiniAudio.Entities.Systems {
             public BufferTypeHandle<UsedHandle> UsedHandleType;
 
             public BufferTypeHandle<FreeHandle> FreeHandleType;
-            
+
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
                 var usedHandleAccessor = chunk.GetBufferAccessor(UsedHandleType);
                 var freeHandleAccessor = chunk.GetBufferAccessor(FreeHandleType);
@@ -210,31 +229,27 @@ namespace MiniAudio.Entities.Systems {
 
         NativeParallelHashMap<Hash128, Entity> entityLookUp;
         UnsafeList<AudioCommandBuffer>* pendingBuffers;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void RegisterSingletonBuffer(
-            ref SystemState state,
-            UnsafeList<AudioCommandBuffer>* playbackBuffer) {
-            var entity = state.EntityManager.CreateEntity();
-            state.EntityManager.AddComponentData(entity, new Singleton {
-                PendingBuffers = playbackBuffer,
-            });
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void FlushPendingBuffers(UnsafeList<AudioCommandBuffer>* playbackBuffers) {
-            for (int i = 0; i < playbackBuffers->Length; i++) {
-                ref var cmdBuffer = ref playbackBuffers->ElementAt(i);
-                cmdBuffer.Dispose();
-            }
-            playbackBuffers->Clear();
-        }
+        BufferTypeHandle<FreeHandle> freeTypeHandle;
+        BufferTypeHandle<UsedHandle> usedTypeHandle;
+        ComponentTypeHandle<AudioPoolID> audioPoolIDType;
+        ComponentTypeHandle<Path> pathType;
+        ComponentTypeHandle<AudioPoolDescriptor> audioPoolDescType;
+        ComponentTypeHandle<AliasSoundLoadParameters> soundParamsType;
+        EntityTypeHandle entityType;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state) {
             entityLookUp = new NativeParallelHashMap<Hash128, Entity>(InitialBufferSize, Allocator.Persistent);
             pendingBuffers = AllocHelper.InitializePersistentPointer<UnsafeList<AudioCommandBuffer>>();
             *pendingBuffers = new UnsafeList<AudioCommandBuffer>(InitialBufferSize, Allocator.Persistent);
+
+            usedTypeHandle = state.GetBufferTypeHandle<UsedHandle>(false);
+            freeTypeHandle = state.GetBufferTypeHandle<FreeHandle>(false);
+            audioPoolIDType = state.GetComponentTypeHandle<AudioPoolID>(true);
+            pathType = state.GetComponentTypeHandle<Path>(true);
+            soundParamsType = state.GetComponentTypeHandle<AliasSoundLoadParameters>(true);
+            audioPoolDescType = state.GetComponentTypeHandle<AudioPoolDescriptor>(true);
+            entityType = state.GetEntityTypeHandle();
 
             RegisterSingletonBuffer(ref state, pendingBuffers);
         }
@@ -291,18 +306,18 @@ namespace MiniAudio.Entities.Systems {
                 .WithAll<AudioPoolID>()
                 .Build();
 
-            var usedTypeHandle = state.GetBufferTypeHandle<UsedHandle>(false);
-            var freeTypeHandle = state.GetBufferTypeHandle<FreeHandle>(false);
-            
+            usedTypeHandle.Update(ref state);
+            freeTypeHandle.Update(ref state);
+
             new RecycleUsedHandlesJob {
                 UsedHandleType = usedTypeHandle,
                 FreeHandleType = freeTypeHandle
             }.Run(initializedPoolQuery);
-            
+
             var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
             var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
-            var entityType = state.GetEntityTypeHandle();
-            var audioPoolIDType = state.GetComponentTypeHandle<AudioPoolID>(true);
+            entityType.Update(ref state);
+            audioPoolIDType.Update(ref state);
 
             var deadPooledAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<AudioPoolID>()
@@ -310,18 +325,17 @@ namespace MiniAudio.Entities.Systems {
                 .WithNone<UsedHandle>()
                 .WithNone<AliasSoundLoadParameters>()
                 .Build();
-            
+
             new RemoveDeadAudioPoolJob {
                 EntityType = entityType,
                 AudioPoolIDType = audioPoolIDType,
                 CommandBuffer = commandBuffer,
                 EntityLookUp = entityLookUp
             }.Run(deadPooledAudioQuery);
-
-            var pathType = state.GetComponentTypeHandle<Path>(true);
-            var soundParamsType = state.GetComponentTypeHandle<AliasSoundLoadParameters>(true);
-            var audioPoolDescType = state.GetComponentTypeHandle<AudioPoolDescriptor>(true);
-            var freeHandlesType = state.GetBufferTypeHandle<FreeHandle>(false);
+            
+            pathType.Update(ref state);
+            soundParamsType.Update(ref state);
+            audioPoolDescType.Update(ref state);
 
             new InitializePooledAudioJob {
                 EntityLookUp = entityLookUp,
@@ -329,7 +343,7 @@ namespace MiniAudio.Entities.Systems {
                 EntityType = entityType,
                 SoundLoadParamType = soundParamsType,
                 PoolDescriptorType = audioPoolDescType,
-                FreeHandleType = freeHandlesType,
+                FreeHandleType = freeTypeHandle,
                 CommandBuffer = commandBuffer
             }.Run(uninitializedPoolQuery);
         }

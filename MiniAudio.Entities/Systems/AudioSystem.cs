@@ -9,7 +9,6 @@ using Unity.Entities;
 namespace MiniAudio.Entities.Systems {
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
-    // [RequireMatchingQueriesForUpdate]
     [BurstCompile]
     public partial struct AudioSystem : ISystem {
 
@@ -31,9 +30,9 @@ namespace MiniAudio.Entities.Systems {
             NativeList<char> fullPath;
 
             public void Execute(
-                in ArchetypeChunk chunk, 
-                int unfilteredChunkIndex, 
-                bool useEnabledMask, 
+                in ArchetypeChunk chunk,
+                int unfilteredChunkIndex,
+                bool useEnabledMask,
                 in v128 chunkEnabledMask) {
 
                 if (!fullPath.IsCreated) {
@@ -88,9 +87,9 @@ namespace MiniAudio.Entities.Systems {
             public EntityCommandBuffer CommandBuffer;
 
             public void Execute(
-                in ArchetypeChunk chunk, 
-                int unfilteredChunkIndex, 
-                bool useEnabledMask, 
+                in ArchetypeChunk chunk,
+                int unfilteredChunkIndex,
+                bool useEnabledMask,
                 in v128 chunkEnabledMask) {
 
                 var audioClips = chunk.GetNativeArray(AudioClipType);
@@ -131,9 +130,9 @@ namespace MiniAudio.Entities.Systems {
             public EntityCommandBuffer CommandBuffer;
 
             public void Execute(
-                in ArchetypeChunk chunk, 
-                int unfilteredChunkIndex, 
-                bool useEnabledMask, 
+                in ArchetypeChunk chunk,
+                int unfilteredChunkIndex,
+                bool useEnabledMask,
                 in v128 chunkEnabledMask) {
 
                 if (chunk.GetChangeVersion(AudioClipType) == LastSystemVersion) {
@@ -172,8 +171,18 @@ namespace MiniAudio.Entities.Systems {
             }
         }
 
+        ComponentTypeHandle<AudioClip> audioClipType;
+        ComponentTypeHandle<AudioStateHistory> audioStateHistoryType;
+        ComponentTypeHandle<Path> pathBlobType;
+        EntityTypeHandle entityType;
+
         [BurstCompile]
-        public void OnCreate(ref SystemState state) { }
+        public void OnCreate(ref SystemState state) {
+            audioClipType = state.GetComponentTypeHandle<AudioClip>(true);
+            audioStateHistoryType = state.GetComponentTypeHandle<AudioStateHistory>(true);
+            pathBlobType = state.GetComponentTypeHandle<Path>(true);
+            entityType = state.GetEntityTypeHandle();
+        }
 
         [BurstCompile]
         public void OnDestroy(ref SystemState state) { }
@@ -183,7 +192,7 @@ namespace MiniAudio.Entities.Systems {
             if (!MiniAudioHandler.IsEngineInitialized()) {
                 return;
             }
-            
+
             var uninitializedSoundQuery = SystemAPI.QueryBuilder()
                 .WithAllRW<AudioClip>()
                 .WithAllRW<AudioStateHistory>()
@@ -199,17 +208,18 @@ namespace MiniAudio.Entities.Systems {
             var ecbSingleton = SystemAPI.GetSingleton<EndInitializationEntityCommandBufferSystem.Singleton>();
             var commandBuffer = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
 
-            var audioClipType = state.GetComponentTypeHandle<AudioClip>(true);
-            var audioStateHistoryType = state.GetComponentTypeHandle<AudioStateHistory>(true);
-            var entityType = state.GetEntityTypeHandle();
+            audioClipType.Update(ref state);
+            audioStateHistoryType.Update(ref state);
+            pathBlobType.Update(ref state);
+            entityType.Update(ref state);
 
             new LoadSoundJob {
-                PathBlobType = state.GetComponentTypeHandle<Path>(true),
+                PathBlobType = pathBlobType,
                 AudioClipType = audioClipType,
                 EntityType = entityType,
                 CommandBuffer = commandBuffer,
             }.Run(uninitializedSoundQuery);
-            
+
             new StopSoundJob {
                 CommandBuffer = commandBuffer,
                 AudioClipType = audioClipType,
