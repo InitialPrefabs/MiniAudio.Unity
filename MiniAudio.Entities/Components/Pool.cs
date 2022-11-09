@@ -27,17 +27,6 @@ namespace MiniAudio.Entities {
         public static implicit operator uint(UsedHandle value) => value.Value;
     }
 
-    [InternalBufferCapacity(32)]
-    public struct OneShotAudioState : IBufferElementData {
-        public AudioState Value;
-
-        public static implicit operator OneShotAudioState(AudioState state) {
-            return new OneShotAudioState {
-                Value = state
-            };
-        }
-    }
-
     /// <summary>
     /// A 1:1 mapping of <see cref="MiniAudio.Interop.SoundLoadParameters"/>.
     /// </summary>

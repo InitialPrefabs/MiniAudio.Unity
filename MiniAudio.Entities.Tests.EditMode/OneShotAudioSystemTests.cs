@@ -27,14 +27,14 @@ namespace MiniAudio.Entities.Tests.EditMode {
 
             uninitializedAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<Path>()
-                .WithNone<InitializedAudioTag>()
+                .WithNone<AudioPoolID>()
                 .Build();
 
             initializedAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<Path>()
                 .WithAll<FreeHandle>()
                 .WithAll<UsedHandle>()
-                .WithAll<InitializedAudioTag>()
+                .WithAll<AudioPoolID>()
                 .Build();
         }
 
@@ -72,13 +72,13 @@ namespace MiniAudio.Entities.Tests.EditMode {
             var audioEcbSingleton = SystemAPI.GetSingleton<OneShotAudioSystem.Singleton>();
             var audioCommandBuffer = audioEcbSingleton.CreateCommandBuffer();
             audioCommandBuffer.Request(
-                new FixedString128Bytes(RelativePath), 
+                new FixedString128Bytes(RelativePath),
                 1.0f);
-            
+
             Assert.AreEqual(1, audioEcbSingleton.PendingBuffers->Length);
 
             systemHandle.Update(World.Unmanaged);
-            
+
             Assert.AreEqual(0, audioEcbSingleton.PendingBuffers->Length);
             Assert.AreEqual(1, initializedAudioQuery.CalculateEntityCount());
 
@@ -99,6 +99,38 @@ namespace MiniAudio.Entities.Tests.EditMode {
             Assert.True(tested);
         }
 
+        public void RemovesDeadAudio() {
+            InitializesPooledAudioEntities();
+            EntityManager.DestroyEntity(initializedAudioQuery);
+
+            systemHandle.Update(World.Unmanaged);
+            entityCommandBufferSystem.Update();
+
+            Assert.True(uninitializedAudioQuery.IsEmpty);
+            Assert.True(initializedAudioQuery.IsEmpty);
+        }
+
+        public void RecyclesPooledAudioEntities() {
+            CommandBufferRecordsAndPlaysBack();
+
+            foreach (var usedHandles in SystemAPI.Query<DynamicBuffer<UsedHandle>>()) {
+                Assert.AreEqual(1, usedHandles.Length);
+                var handle = usedHandles[0];
+                while (!MiniAudioHandler.IsSoundFinished(handle.Value)) { }
+                Assert.True(MiniAudioHandler.IsSoundFinished(handle.Value));
+            }
+
+            systemHandle.Update(World.Unmanaged);
+            entityCommandBufferSystem.Update();
+
+            foreach (var (audioPoolDescriptor, usedHandles, freeHandles) in 
+                SystemAPI.Query<AudioPoolDescriptor, DynamicBuffer<UsedHandle>, DynamicBuffer<FreeHandle>>()) {
+                
+                Assert.AreEqual(0, usedHandles.Length);
+                Assert.AreEqual(audioPoolDescriptor.ReserveCapacity, freeHandles.Length);
+            }
+        }
+
         public void TearDown() {
             foreach (var pathBlob in SystemAPI.Query<Path>()) {
                 pathBlob.Value.Dispose();
@@ -115,7 +147,6 @@ namespace MiniAudio.Entities.Tests.EditMode {
             });
             EntityManager.AddBuffer<FreeHandle>(entity);
             EntityManager.AddBuffer<UsedHandle>(entity);
-            EntityManager.AddBuffer<OneShotAudioState>(entity);
 
             var blobAssetReference = BaseAudioAuthoring.CreatePathBlob(RelativePath, true);
             EntityManager.AddComponentData(entity, new Path {
@@ -127,7 +158,7 @@ namespace MiniAudio.Entities.Tests.EditMode {
     public class OneShotAudioSystemV2Tests : ECSTestsFixture {
 
         OneShotAudioSystemV2TestRunner testRunner;
-        
+
         [SetUp]
         public override void Setup() {
             base.Setup();
@@ -148,6 +179,11 @@ namespace MiniAudio.Entities.Tests.EditMode {
         }
 
         [Test]
+        public void RemovesDeadAudio() {
+            testRunner.RemovesDeadAudio();
+        }
+
+        [Test]
         public void CommandBufferCompletesDependencies() {
             testRunner.CommandBufferRecordsAndPlaysBack();
         }
@@ -158,10 +194,15 @@ namespace MiniAudio.Entities.Tests.EditMode {
         }
 
         [Test]
+        public void RecyclesPooledAudioEntities() {
+            testRunner.RecyclesPooledAudioEntities();
+        }
+
+        [Test]
         public void OneShotAudioSystemTestsErrors() {
             var system = new OneShotAudioSystem();
             var systemState = new SystemState();
-            
+
             system.OnUpdate(ref systemState);
             LogAssert.Expect(LogType.Error, "The PendingBuffers were not initialized!");
         }

@@ -266,7 +266,6 @@ namespace MiniAudio.Entities.Systems {
             var _ = SystemAPI.GetSingletonRW<Singleton>();
             var uninitializedPoolQuery = SystemAPI.QueryBuilder()
                 .WithAllRW<AudioPoolDescriptor>()
-                .WithAllRW<OneShotAudioState>()
                 .WithAllRW<FreeHandle>()
                 .WithAll<UsedHandle>()
                 .WithAll<AliasSoundLoadParameters>()
@@ -286,7 +285,6 @@ namespace MiniAudio.Entities.Systems {
 
             var initializedPoolQuery = SystemAPI.QueryBuilder()
                 .WithAllRW<AudioPoolDescriptor>()
-                .WithAllRW<OneShotAudioState>()
                 .WithAllRW<FreeHandle>()
                 .WithAll<UsedHandle>()
                 .WithAll<AliasSoundLoadParameters>()
@@ -308,7 +306,6 @@ namespace MiniAudio.Entities.Systems {
 
             var deadPooledAudioQuery = SystemAPI.QueryBuilder()
                 .WithAll<AudioPoolID>()
-                .WithNone<OneShotAudioState>()
                 .WithNone<FreeHandle>()
                 .WithNone<UsedHandle>()
                 .WithNone<AliasSoundLoadParameters>()

@@ -28,7 +28,6 @@ namespace MiniAudio.Entities.Authoring {
 
             AddBuffer<FreeHandle>(entity);
             AddBuffer<UsedHandle>(entity);
-            AddBuffer<OneShotAudioState>(entity);
 
             AddComponent(entity, new AudioPoolDescriptor {
                 ReserveCapacity = authoring.Size
