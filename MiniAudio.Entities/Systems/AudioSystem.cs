@@ -41,8 +41,8 @@ namespace MiniAudio.Entities.Systems {
                         Allocator.Temp);
                 }
 
-                var loadPaths = chunk.GetNativeArray(PathBlobType);
-                var audioClips = chunk.GetNativeArray(AudioClipType);
+                var loadPaths = chunk.GetNativeArray(ref PathBlobType);
+                var audioClips = chunk.GetNativeArray(ref AudioClipType);
                 var entities = chunk.GetNativeArray(EntityType);
 
                 for (int i = 0; i < chunk.Count; i++) {
@@ -92,7 +92,7 @@ namespace MiniAudio.Entities.Systems {
                 bool useEnabledMask,
                 in v128 chunkEnabledMask) {
 
-                var audioClips = chunk.GetNativeArray(AudioClipType);
+                var audioClips = chunk.GetNativeArray(ref AudioClipType);
                 var entities = chunk.GetNativeArray(EntityType);
 
                 for (int i = 0; i < chunk.Count; i++) {
@@ -135,12 +135,12 @@ namespace MiniAudio.Entities.Systems {
                 bool useEnabledMask,
                 in v128 chunkEnabledMask) {
 
-                if (chunk.GetChangeVersion(AudioClipType) == LastSystemVersion) {
+                if (chunk.GetChangeVersion(ref AudioClipType) == LastSystemVersion) {
                     return;
                 }
 
-                var audioClips = chunk.GetNativeArray(AudioClipType);
-                var stateTypes = chunk.GetNativeArray(AudioStateHistoryType);
+                var audioClips = chunk.GetNativeArray(ref AudioClipType);
+                var stateTypes = chunk.GetNativeArray(ref AudioStateHistoryType);
                 var entities = chunk.GetNativeArray(EntityType);
 
                 for (int i = 0; i < chunk.Count; i++) {

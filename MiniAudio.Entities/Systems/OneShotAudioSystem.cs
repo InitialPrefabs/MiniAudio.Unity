@@ -128,10 +128,10 @@ namespace MiniAudio.Entities.Systems {
                 }
 
                 var entities = chunk.GetNativeArray(EntityType);
-                var paths = chunk.GetNativeArray(PathType);
-                var freeHandlesAccessor = chunk.GetBufferAccessor(FreeHandleType);
-                var poolDescriptors = chunk.GetNativeArray(PoolDescriptorType);
-                var aliasSoundParams = chunk.GetNativeArray(SoundLoadParamType);
+                var paths = chunk.GetNativeArray(ref PathType);
+                var freeHandlesAccessor = chunk.GetBufferAccessor(ref FreeHandleType);
+                var poolDescriptors = chunk.GetNativeArray(ref PoolDescriptorType);
+                var aliasSoundParams = chunk.GetNativeArray(ref SoundLoadParamType);
 
                 for (int i = 0; i < chunk.Count; i++) {
                     var entity = entities[i];
@@ -185,7 +185,7 @@ namespace MiniAudio.Entities.Systems {
             public EntityCommandBuffer CommandBuffer;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
-                var audioPoolIds = chunk.GetNativeArray(AudioPoolIDType);
+                var audioPoolIds = chunk.GetNativeArray(ref AudioPoolIDType);
                 var entities = chunk.GetNativeArray(EntityType);
                 for (int i = 0; i < chunk.Count; i++) {
                     var audioPoolId = audioPoolIds[i];
@@ -207,8 +207,8 @@ namespace MiniAudio.Entities.Systems {
             public BufferTypeHandle<FreeHandle> FreeHandleType;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask) {
-                var usedHandleAccessor = chunk.GetBufferAccessor(UsedHandleType);
-                var freeHandleAccessor = chunk.GetBufferAccessor(FreeHandleType);
+                var usedHandleAccessor = chunk.GetBufferAccessor(ref UsedHandleType);
+                var freeHandleAccessor = chunk.GetBufferAccessor(ref FreeHandleType);
                 for (int i = 0; i < chunk.Count; i++) {
                     var usedHandles = usedHandleAccessor[i];
                     var freeHandles = freeHandleAccessor[i];
